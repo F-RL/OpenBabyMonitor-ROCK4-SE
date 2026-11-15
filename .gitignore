@@ -208,3 +208,6 @@ bootstrap-icons.svg
 
 *.npz
 *.bin
+
+
+**.png

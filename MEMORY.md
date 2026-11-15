@@ -145,10 +145,25 @@ Design notes:
 
 ## Next steps and open questions
 
-The first job is to prove the media inputs on the host before writing any server code.
+### Where we left off (end of session Nov 15, 2026)
 
-- [ ] Capture a still and a short video from `/dev/video0` with the commands above; confirm `systemctl status rkisp_3A` is active and the image is well exposed.
-- [ ] Check for the hardware H.264 encoder: `ls /dev/mpp_service` and `gst-inspect-1.0 | grep -i mpp` (look for `mpph264enc`). Fall back to `x264enc` at 720p if absent.
+Media inputs proven: camera (V4L2 + rkisp_3A), sensor flip, hardware H.264 encoder, and a working Observe HLS prototype (`tools/test_observe.sh hls`, plays in VLC). Next session, in order:
+
+1. Confirm the remaining Observe facts: audio present in the HLS stream, `enc` timing/CPU (`top`), end-to-end latency (clap test).
+2. Run `tools/test_crynet.py` on the board (never run yet; see item below).
+3. Quick Listen test (upstream ffmpeg ALSA → MP3 → HLS command).
+4. Then start the Flask app: login, mode switching between `babymonitor-*` units, SQLite settings.
+
+Parked: board power-off (inspect boot `8c1b6a48…` journal tail), suspend fix not yet confirmed applied, camera image tuning.
+
+### Checklist
+
+- [x] Still captured Nov 15, 2026 (1920x1080 NV12 via v4l2-ctl → ffmpeg PNG). Image was upside down (mount; fixed by sensor flip), dark (AE exposing for a blown-out white object, see tuning note), pink cast (Camera (F) is night-vision, no IR-cut filter). Possible UI options: grayscale, WB tweak, exposure compensation.
+- [x] Nov 15, 2026: `rkisp_3A` active; `/dev/video0` offers NV12/YUYV/etc. stepwise 32x16–2592x1944 (ISP scales). `/dev/mpp_service` exists (root:video, 0660), so stream services need the `video` group.
+- [x] GStreamer 1.22.9 installed with base/good/bad/ugly/libav/alsa, plus Radxa `gstreamer1.0-rockchip1`, `librockchip-mpp1` 1.5.0, `librga2`, `libv4l-rkmpp`, `task-rockchip-gstreamer`. Nothing to install.
+- Sensor subdev `/dev/v4l-subdev2` ctrls: horizontal_flip, vertical_flip (set before streaming), exposure 4–1964 (lines; longer needs more vertical_blanking), analogue_gain 16–1023, auto_exposure menu (Manual). Observed under 3A in dim room: exposure 886, gain 56. `/etc/iqfiles` has two ov5647 files (symlinks to `/usr/share/rockchip-iqfiles-rk3399/`): `ov5647_rpi-camera-v1p3_default.xml`, `ov5647_OKDO-5MP_default.xml`. 3A picks `<sensor>_<module-name>_<lens-name>.xml` from DT props `rockchip,camera-module-name` / `-lens-name`. Checked: DT (`/sys/firmware/devicetree/base/i2c@ff3d0000/camera-ov5647@36`) sets module `rpi-camera-v1p3`, lens `default` → matches `ov5647_rpi-camera-v1p3_default.xml`, so tuning IS available (overlay `rock-4-rpi-camera-v1_3.dtbo`). Dark image likely AE exposing for the blown-out white pillow (high-DR scene), not broken 3A. Pink/WB is because the IQ assumes an IR-cut lens. **Image tuning deferred** (backlog: try OKDO IQ by swapping the symlink, manual exposure test, exposure-comp/metering option in UI). 3A logs go to syslog tag `rkisp_3A-0` (`journalctl -t rkisp_3A-0`); `rkisp_3A_server` options: `--mmedia`, `--silent`. Sensor flip (h+v =1) verified Nov 15, 2026: correct 180° rotation, colours OK → use sensor flip, not videoflip.
+- [x] Observe prototype **works** (Nov 15, 2026): HLS 720p via mpph264enc plays in VLC. Available: v4l2src, mpph264enc, x264enc, h264parse, alsasrc, voaacenc, avenc_aac (no fdkaacenc), aacparse, hlssink2, mp4mux, videoflip. mpph264enc props include bps/bps-min/bps-max, gop, rc-mode, profile, level, qp-*, header-mode, sei-mode, **rotation, width, height** (encoder-side rotate/scale, useful for 90° option). Still unconfirmed: audio in stream, enc CPU/timing, latency. (User sourced the script with `.`; advised to run with bash.)
+- Script: `tools/test_observe.sh` with `check` (element list + mpph264enc props), `enc` (300-frame mpph264enc → mp4), `hls` (v4l2src NV12 → mpph264enc → h264parse + alsasrc → AAC → hlssink2 in /dev/shm/obm-hls, served by `python3 -m http.server 8000`, view in VLC). Env: MIC, WIDTH/HEIGHT, BPS, FLIP, OUT.
 - [x] USB mic found with `arecord -l`; test clip recorded successfully.
 - [x] Repo search: capture methods and stream formats (see OpenBabyMonitor findings).
 - [x] Cry model located: ONNX via OpenCV DNN.
@@ -162,7 +177,10 @@ The first job is to prove the media inputs on the host before writing any server
 Board issues to investigate (seen Nov 15, 2026):
 
 - [ ] **Random power-off** shortly after installing the onnxruntime venv dependencies. Suspects: undersized power supply (RK3399 under load, e.g. pip building/unpacking, needs a solid 5 V/3 A+ USB-C PD supply), thermal shutdown (check heatsink, `/sys/class/thermal/thermal_zone*/temp`), or a kernel crash. After the next boot, check `journalctl -b -1 -e` (enable persistent journal first: `sudo mkdir -p /var/log/journal && sudo systemctl restart systemd-journald`) and `dmesg` for under-voltage/thermal messages.
-- [ ] **SSH session periodically drops/suspends.** Likely system suspend or Wi-Fi power saving. Check `systemctl status sleep.target suspend.target`; fix with `sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target`, and disable Wi-Fi power save (`nmcli connection modify <conn> 802-11-wireless.powersave 2`). Client side: `ServerAliveInterval 30` in `~/.ssh/config`. A baby monitor must never sleep, so masking suspend is required anyway.
+- [ ] **SSH session periodically drops/suspends.** Diagnosed Nov 15, 2026: real system suspend (systemd "will suspend" broadcast in the SSH terminal; board needs a keypress on the attached keyboard to wake). logind.conf/sleep.conf are defaults and sleep targets were not masked, so the idle trigger is likely the desktop power manager. Board is on wired Ethernet (`end0`), not Wi-Fi. Fix given: `sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target`, plus disable desktop auto-suspend, or boot headless (`systemctl set-default multi-user.target`). Not yet confirmed applied/verified. User `radxa` lacks journal access: `sudo usermod -aG adm,systemd-journal radxa`.
+- Power-off stress test (stress-ng + temperature watch) skipped for now by user; persistent journal setup still needed.
+- Journal is already persistent (4 boots listed Nov 15, 2026). Board has no RTC battery: boot timestamps start stale until NTP sync. The power-off is probably boot -1 (ended 2026-11-15 17:02:01 UTC, id 8c1b6a48…); its tail (`journalctl -b 8c1b6a4802374e20a978b306bc1487a9 -n 60`) has not been inspected yet. Parked by user to continue the project.
+- Last power-off needed a full power cycle (keypress did not wake it), so it is distinct from the idle suspend, unless it was a failed resume. With persistent journal on, read `journalctl -b -1 -n 100` after the next one: ends at `PM: suspend entry` = resume hang; abrupt cut = power supply; panic/thermal = kernel/heat. PSU model/rating and heatsink still unknown.
 
 Open questions for the user:
 
