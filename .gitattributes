@@ -1,0 +1,9 @@
+# Everything runs on Linux: keep LF line endings in every checkout, including Windows,
+# so shell scripts and systemd units copied to the board work.
+* text=auto eol=lf
+
+*.onnx binary
+*.npz binary
+*.png binary
+*.jpg binary
+*.ico binary
