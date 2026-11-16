@@ -119,17 +119,18 @@ Other upstream assumptions to expect: a `pi` user (`BM_USER` in `config/setup_co
 
 ## Architecture
 
-Agreed Nov 15, 2026: Flask for control and settings; media never passes through Python. Streams are plain HLS files written to a tmpfs directory (e.g. `/run/babymonitor/stream/`) and served directly by the HTTPS proxy. No MediaMTX (dropped Nov 15, 2026; revisit only if HLS latency, typically several seconds, proves unacceptable, e.g. for WebRTC).
+Agreed Nov 15, 2026: Flask for control and settings; media never passes through Python. **Updated Nov 16, 2026: streams go through MediaMTX and are played over WebRTC** (measured <1 s latency vs ~8 s with plain HLS). Stream pipelines publish RTSP to MediaMTX (`rtsp://127.0.0.1:8554/<path>`); browsers play via WHEP (MediaMTX :8889, UDP 8189 for media); MediaMTX's HLS (:8888) can be a fallback. Audio must be Opus (WebRTC has no AAC). Viewer auth via MediaMTX `authHTTPAddress` → Flask endpoint.
 
-The browser reaches everything through one HTTPS proxy: Flask serves the UI and API; the proxy serves HLS files as static content (behind the Flask login, e.g. Caddy `forward_auth` / nginx `auth_request`); the host agent does the few things that need root.
+The browser reaches everything through one HTTPS proxy: Flask serves the UI and API; the proxy forwards WHEP signalling to MediaMTX (media itself flows over UDP 8189); the host agent does the few things that need root.
 
 | systemd unit | Runtime | Device access | Role |
 | --- | --- | --- | --- |
 | `babymonitor-web.service` | Python + Flask + gunicorn in a venv, SQLite | None | Login, mode switching, settings, cry alerts to the browser (SSE) |
 | `babymonitor-crydetect.service` (Notify) | Python + onnxruntime in a venv | `audio` group; opens ALSA mic directly (`arecord`) | Runs threshold or ONNX model, posts events to web |
-| `babymonitor-audiostream.service` (Listen) | ffmpeg | `audio` group | ALSA → MP3 → HLS, as upstream `audiostream.py` |
-| `babymonitor-videostream.service` (Observe) | GStreamer (`gst-launch-1.0` or small Python wrapper) | `video` + `audio` groups; `/dev/mpp_service` | `v4l2src /dev/video0` → `mpph264enc` (fallback `x264enc`) + ALSA → AAC → `hlssink2` |
-| `caddy.service` (or nginx) | Debian package | Port 443 | TLS with a self-signed or internal certificate; serves HLS dir |
+| `babymonitor-audiostream.service` (Listen) | GStreamer | `audio` group | ALSA → Opus → `rtspclientsink` → MediaMTX (audio-only WebRTC) |
+| `babymonitor-videostream.service` (Observe) | GStreamer (`gst-launch-1.0` or small Python wrapper) | `video` + `audio` groups; `/dev/mpp_service` | `v4l2src /dev/video0` → `mpph264enc profile=66` + ALSA → Opus → `rtspclientsink` (proven in `tools/test_webrtc.sh`) |
+| `babymonitor-mediamtx.service` | MediaMTX arm64 binary | None | RTSP in, WebRTC/HLS out; always running |
+| `caddy.service` (or nginx) | Debian package | Port 443 | TLS with a self-signed or internal certificate; proxies Flask and WHEP |
 
 Mode units are mutually exclusive (`Conflicts=` between them); the web service switches modes by asking the host agent to start a unit (or via a polkit rule limited to `babymonitor-*` units).
 
@@ -140,8 +141,8 @@ Design notes:
 - Modes are exclusive (decided Nov 15, 2026), as upstream: Standby runs nothing; Notify runs only crydetect; Listen runs only the audio stream; Observe runs only the audio+video stream. One process holds the mic at a time, so no mic sharing is needed; stop the previous mode's unit before starting the next.
 - Settings and state live in SQLite (decided Nov 15, 2026), replacing upstream MariaDB.
 - With no containers, the capture pipeline uses Rockchip's hardware-encoder GStreamer plugin and vendor libraries directly. Run web, crydetect and stream units as unprivileged service users; only the host agent runs as root.
-- Upstream encrypts HLS (AES-128, per-start key). Over HTTPS with an authenticated proxy this is optional; decide later.
-- Frontend can play HLS with hls.js (video and audio); Safari plays it natively.
+- WebRTC media is DTLS-SRTP encrypted, so upstream's AES-128 HLS encryption is not needed.
+- Frontend plays WebRTC via a small WHEP client (or MediaMTX `reader.js`); hls.js only if an HLS fallback is kept.
 
 ## Next steps and open questions
 
@@ -149,9 +150,9 @@ Design notes:
 
 Media inputs proven: camera (V4L2 + rkisp_3A), sensor flip, hardware H.264 encoder, and a working Observe HLS prototype (`tools/test_observe.sh hls`, plays in VLC). Next session, in order:
 
-1. Confirm the remaining Observe facts: audio present in the HLS stream, `enc` timing/CPU (`top`), end-to-end latency (clap test).
+1. Confirm the remaining Observe facts: ~~audio present in the HLS stream~~ (confirmed Nov 16, 2026), ~~CPU~~ (~27% of one core, fine), ~~latency~~ (~8 s with HLS; **WebRTC via MediaMTX <1 s, Nov 16, 2026** — adopted).
 2. Run `tools/test_crynet.py` on the board (never run yet; see item below).
-3. Quick Listen test (upstream ffmpeg ALSA → MP3 → HLS command).
+3. Quick Listen test: `tools/test_webrtc.sh audio` (ALSA → Opus → MediaMTX path `mic`, view `http://<ip>:8889/mic/`). Written Nov 16, 2026, not yet run.
 4. Then start the Flask app: login, mode switching between `babymonitor-*` units, SQLite settings.
 
 Parked: board power-off (inspect boot `8c1b6a48…` journal tail), suspend fix not yet confirmed applied, camera image tuning.
@@ -162,7 +163,8 @@ Parked: board power-off (inspect boot `8c1b6a48…` journal tail), suspend fix n
 - [x] Nov 15, 2026: `rkisp_3A` active; `/dev/video0` offers NV12/YUYV/etc. stepwise 32x16–2592x1944 (ISP scales). `/dev/mpp_service` exists (root:video, 0660), so stream services need the `video` group.
 - [x] GStreamer 1.22.9 installed with base/good/bad/ugly/libav/alsa, plus Radxa `gstreamer1.0-rockchip1`, `librockchip-mpp1` 1.5.0, `librga2`, `libv4l-rkmpp`, `task-rockchip-gstreamer`. Nothing to install.
 - Sensor subdev `/dev/v4l-subdev2` ctrls: horizontal_flip, vertical_flip (set before streaming), exposure 4–1964 (lines; longer needs more vertical_blanking), analogue_gain 16–1023, auto_exposure menu (Manual). Observed under 3A in dim room: exposure 886, gain 56. `/etc/iqfiles` has two ov5647 files (symlinks to `/usr/share/rockchip-iqfiles-rk3399/`): `ov5647_rpi-camera-v1p3_default.xml`, `ov5647_OKDO-5MP_default.xml`. 3A picks `<sensor>_<module-name>_<lens-name>.xml` from DT props `rockchip,camera-module-name` / `-lens-name`. Checked: DT (`/sys/firmware/devicetree/base/i2c@ff3d0000/camera-ov5647@36`) sets module `rpi-camera-v1p3`, lens `default` → matches `ov5647_rpi-camera-v1p3_default.xml`, so tuning IS available (overlay `rock-4-rpi-camera-v1_3.dtbo`). Dark image likely AE exposing for the blown-out white pillow (high-DR scene), not broken 3A. Pink/WB is because the IQ assumes an IR-cut lens. **Image tuning deferred** (backlog: try OKDO IQ by swapping the symlink, manual exposure test, exposure-comp/metering option in UI). 3A logs go to syslog tag `rkisp_3A-0` (`journalctl -t rkisp_3A-0`); `rkisp_3A_server` options: `--mmedia`, `--silent`. Sensor flip (h+v =1) verified Nov 15, 2026: correct 180° rotation, colours OK → use sensor flip, not videoflip.
-- [x] Observe prototype **works** (Nov 15, 2026): HLS 720p via mpph264enc plays in VLC. Available: v4l2src, mpph264enc, x264enc, h264parse, alsasrc, voaacenc, avenc_aac (no fdkaacenc), aacparse, hlssink2, mp4mux, videoflip. mpph264enc props include bps/bps-min/bps-max, gop, rc-mode, profile, level, qp-*, header-mode, sei-mode, **rotation, width, height** (encoder-side rotate/scale, useful for 90° option). Still unconfirmed: audio in stream, enc CPU/timing, latency. (User sourced the script with `.`; advised to run with bash.)
+- [x] Observe prototype **works** (Nov 15, 2026): HLS 720p via mpph264enc plays in VLC. Available: v4l2src, mpph264enc, x264enc, h264parse, alsasrc, voaacenc, avenc_aac (no fdkaacenc), aacparse, hlssink2, mp4mux, videoflip. mpph264enc props include bps/bps-min/bps-max, gop, rc-mode, profile, level, qp-*, header-mode, sei-mode, **rotation, width, height** (encoder-side rotate/scale, useful for 90° option). Audio in HLS stream confirmed Nov 16, 2026. CPU (Nov 16, 2026, 720p hls, one `top` snapshot): gst-launch-1.0 ~27% of one core (~4.5% of 6 cores), RES 22 MB → HW encode is effective, no software-convert bottleneck. HLS latency ~8 s (superseded by WebRTC). (User sourced the script with `.`; advised to run with bash.)
+- [x] WebRTC test **works, <1 s latency** (Nov 16, 2026): `tools/test_webrtc.sh check|install|run`. Downloads latest MediaMTX arm64 to `~/mediamtx` (default config), pipeline v4l2src → mpph264enc (profile=66 baseline, gop 30) + alsasrc → opusenc → `rtspclientsink` rtsp://127.0.0.1:8554/cam; view `http://<ip>:8889/cam/` (WebRTC) or `:8888/cam/` (HLS). Needs `gstreamer1.0-rtsp` if rtspclientsink missing. Goal: <1 s vs 8 s HLS.
 - Script: `tools/test_observe.sh` with `check` (element list + mpph264enc props), `enc` (300-frame mpph264enc → mp4), `hls` (v4l2src NV12 → mpph264enc → h264parse + alsasrc → AAC → hlssink2 in /dev/shm/obm-hls, served by `python3 -m http.server 8000`, view in VLC). Env: MIC, WIDTH/HEIGHT, BPS, FLIP, OUT.
 - [x] USB mic found with `arecord -l`; test clip recorded successfully.
 - [x] Repo search: capture methods and stream formats (see OpenBabyMonitor findings).
@@ -171,8 +173,7 @@ Parked: board power-off (inspect boot `8c1b6a48…` journal tail), suspend fix n
 - [x] `setup_device.sh` raspi-config calls listed.
 - [x] Decided: exclusive modes, as upstream.
 - [x] Decided: SQLite for settings.
-- [x] Decided: plain HLS (ffmpeg / GStreamer `hlssink2`), no MediaMTX.
-- [ ] On the board: check `gst-inspect-1.0 hlssink2` and an AAC encoder (`avenc_aac` or `voaacenc`) are available.
+- [x] Decided Nov 16, 2026: MediaMTX + WebRTC (replaces the Nov 15 plain-HLS decision after 8 s HLS latency measured).
 
 Board issues to investigate (seen Nov 15, 2026):
 
