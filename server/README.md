@@ -45,7 +45,8 @@ sudo install -d -o babymonitor -g babymonitor -m 750 /var/lib/babymonitor
 sudo cp -r server /opt/babymonitor/
 sudo python3 -m venv /opt/babymonitor/venv
 sudo /opt/babymonitor/venv/bin/pip install -r /opt/babymonitor/server/requirements.txt
-# MediaMTX: as tools/test_webrtc.sh install, but into /opt/babymonitor/mediamtx
+# MediaMTX: download the latest arm64 release into /opt/babymonitor/mediamtx
+sudo MTX_DIR=/opt/babymonitor/mediamtx bash tools/test_webrtc.sh install
 sudo cp server/deploy/mediamtx.yml server/deploy/streams.env /etc/babymonitor/   # edit MIC
 sudo cp server/deploy/Caddyfile /etc/caddy/Caddyfile
 sudo cp server/deploy/*.service /etc/systemd/system/
