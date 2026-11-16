@@ -29,7 +29,9 @@ def create_app(test_config=None):
     if test_config is not None:
         app.config.update(test_config)
 
-    os.makedirs(app.instance_path, exist_ok=True)
+    # Only create the database's own directory: on the board the code lives in a
+    # root-owned /opt, so the default instance/ folder next to it is not writable.
+    os.makedirs(os.path.dirname(os.path.abspath(app.config['DATABASE'])), exist_ok=True)
     db.init_app(app)
     agent_client.init_app(app)
 

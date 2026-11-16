@@ -40,6 +40,8 @@ flask --app babymonitor run --debug
 sudo useradd --system --home /var/lib/babymonitor --groups audio,video babymonitor
 sudo apt install caddy gstreamer1.0-rtsp
 sudo mkdir -p /opt/babymonitor /etc/babymonitor
+# The service user owns only its data directory; the code in /opt stays root-owned.
+sudo install -d -o babymonitor -g babymonitor -m 750 /var/lib/babymonitor
 sudo cp -r server /opt/babymonitor/
 sudo python3 -m venv /opt/babymonitor/venv
 sudo /opt/babymonitor/venv/bin/pip install -r /opt/babymonitor/server/requirements.txt
