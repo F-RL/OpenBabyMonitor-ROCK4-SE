@@ -3,6 +3,8 @@
 'use strict';
 
 async function whepPlay(url, mediaElement) {
+  // Accept page-relative URLs such as '/stream/cam/whep'.
+  url = new URL(url, window.location.href).href;
   const pc = new RTCPeerConnection();
   pc.addTransceiver('video', { direction: 'recvonly' });
   pc.addTransceiver('audio', { direction: 'recvonly' });
@@ -29,7 +31,13 @@ async function whepPlay(url, mediaElement) {
   // The session URL is used to end the session cleanly on stop().
   const location = response.headers.get('Location');
   const sessionUrl = location ? new URL(location, url).href : null;
-  await pc.setRemoteDescription({ type: 'answer', sdp: await response.text() });
+  try {
+    await pc.setRemoteDescription({ type: 'answer', sdp: await response.text() });
+  } catch (err) {
+    pc.close();
+    if (sessionUrl) fetch(sessionUrl, { method: 'DELETE', credentials: 'same-origin' }).catch(() => {});
+    throw err;
+  }
 
   return {
     pc,

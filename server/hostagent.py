@@ -50,7 +50,12 @@ class Agent:
         others = [u for u in MODE_UNITS.values() if u and u != target]
         self.run('stop', *others, check=False)
         if target:
-            self.run('start', target)
+            result = self.run('start', target, check=False)
+            if result.returncode != 0:
+                error = (result.stderr or '').strip()
+                if 'not found' in error:
+                    raise ValueError(f'{mode} mode is not installed yet ({target} is missing)')
+                raise ValueError(error or f'could not start {target}')
         return mode
 
     def handle(self, request):

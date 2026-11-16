@@ -58,3 +58,24 @@ def test_standby_stops_everything():
 def test_rejects_unknown_requests(request_):
     with pytest.raises(ValueError):
         hostagent.Agent(FakeSystemctl()).handle(request_)
+
+
+def test_missing_unit_gives_clear_error():
+    def systemctl(*args, check=True):
+        if args[0] == 'start':
+            return subprocess.CompletedProcess(
+                args, 5, stderr=f'Failed to start {args[1]}: Unit {args[1]} not found.\n')
+        return subprocess.CompletedProcess(args, 0)
+
+    with pytest.raises(ValueError, match='notify mode is not installed yet'):
+        hostagent.Agent(systemctl).set_mode('notify')
+
+
+def test_failed_start_reports_systemd_error():
+    def systemctl(*args, check=True):
+        if args[0] == 'start':
+            return subprocess.CompletedProcess(args, 1, stderr='A dependency job failed.\n')
+        return subprocess.CompletedProcess(args, 0)
+
+    with pytest.raises(ValueError, match='A dependency job failed'):
+        hostagent.Agent(systemctl).set_mode('observe')
