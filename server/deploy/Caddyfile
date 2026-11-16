@@ -1,8 +1,20 @@
 # HTTPS front for the baby monitor. Install to /etc/caddy/Caddyfile.
-# Caddy's internal CA issues the certificate; browsers will warn once until the
-# root (/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt) is trusted.
-{$BM_HOSTNAME:rock-4se}, {$BM_HOSTNAME:rock-4se}.local, localhost {
-	tls internal
+#
+# Caddy's internal CA issues a certificate the first time the board is opened under a
+# given name or IP (on-demand TLS), after Flask approves that name. This makes
+# https://<board-ip>/ work as well as https://rock-4se/, including on the hotspot.
+# Browsers warn once until Caddy's root certificate is trusted:
+# /var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt
+{
+	on_demand_tls {
+		ask http://127.0.0.1:8000/auth/tls-ask
+	}
+}
+
+https:// {
+	tls internal {
+		on_demand
+	}
 
 	# WebRTC signalling (WHEP) goes to MediaMTX, but only for logged-in browsers.
 	handle /stream/* {

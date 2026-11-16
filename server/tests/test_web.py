@@ -89,3 +89,12 @@ def test_change_password(client):
 def test_secret_key_persists(tmp_path):
     config = {'TESTING': True, 'DATABASE': str(tmp_path / 'k.sqlite3'), 'AGENT_SOCKET': 'fake'}
     assert create_app(config).secret_key == create_app(config).secret_key
+
+
+def test_tls_ask_allows_ips_and_own_hostname(client, monkeypatch):
+    monkeypatch.setattr('socket.gethostname', lambda: 'rock-4se')
+    for domain in ('192.168.1.50', '10.42.0.1', 'fe80::1', 'localhost', 'rock-4se',
+                   'ROCK-4SE.local'):
+        assert client.get('/auth/tls-ask', query_string={'domain': domain}).status_code == 200
+    for domain in ('example.com', 'rock-4se.example.com', ''):
+        assert client.get('/auth/tls-ask', query_string={'domain': domain}).status_code == 403

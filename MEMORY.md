@@ -148,7 +148,7 @@ Media inputs proven: camera (V4L2 + rkisp_3A), sensor flip, hardware H.264 encod
 - `server/babymonitor/`: single-password login (hash + session secret in SQLite key/value `settings`), `GET/PUT /api/mode` → host agent, `/auth/stream` for Caddy `forward_auth`, page with mode buttons + WHEP player (`static/whep.js`, retries until stream is up, muted fallback + "tap for sound").
 - `server/hostagent.py`: root, stdlib only, Unix socket `/run/babymonitor/agent.sock` (group `babymonitor`), actions get_mode/set_mode/reboot/shutdown; set_mode stops other units then starts target.
 - `server/deploy/`: Caddyfile (`tls internal`, `/stream/*` → MediaMTX after forward-auth, Location rewrite), `mediamtx.yml` (localhost only + UDP 8189), `streams.env` (MIC etc.), units web/agent/mediamtx/videostream/audiostream. One service user `babymonitor` (audio, video groups).
-- Next: deploy to the board and test end to end; then crydetect service + SSE alerts; settings UI (Wi-Fi/hotspot, country, time zone, reboot); setup script. Unverified on board: MediaMTX config keys with latest release, Caddy `header_down` regex syntax on bookworm's Caddy 2.6.
+- Next: deploy to the board and test end to end; then crydetect service + SSE alerts; settings UI (Wi-Fi/hotspot, country, time zone, reboot); setup script. Unverified on board: MediaMTX config keys with latest release, Caddy `header_down` regex syntax on bookworm Caddy 2.6. Caddy uses on-demand `tls internal` approved by Flask `/auth/tls-ask` (IPs + own hostname), because opening by IP gave SSL_ERROR_INTERNAL_ERROR_ALERT with fixed site names (Nov 16, 2026).
 
 Parked: board power-off (inspect boot `8c1b6a48…` journal tail), suspend fix not yet confirmed applied, camera image tuning.
 
