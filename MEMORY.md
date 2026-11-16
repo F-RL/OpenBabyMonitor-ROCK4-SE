@@ -152,7 +152,7 @@ Media inputs proven: camera (V4L2 + rkisp_3A), sensor flip, hardware H.264 encod
 
 1. Confirm the remaining Observe facts: ~~audio present in the HLS stream~~ (confirmed Nov 16, 2026), ~~CPU~~ (~27% of one core, fine), ~~latency~~ (~8 s with HLS; **WebRTC via MediaMTX <1 s, Nov 16, 2026** — adopted).
 2. Run `tools/test_crynet.py` on the board (never run yet; see item below).
-3. Quick Listen test: `tools/test_webrtc.sh audio` (ALSA → Opus → MediaMTX path `mic`, view `http://<ip>:8889/mic/`). Written Nov 16, 2026, not yet run.
+3. Quick Listen test: `tools/test_webrtc.sh audio` (ALSA → Opus → MediaMTX path `mic`, view `http://<ip>:8889/mic/`). **Works on the board (Nov 16, 2026).**
 4. Then start the Flask app: login, mode switching between `babymonitor-*` units, SQLite settings.
 
 Parked: board power-off (inspect boot `8c1b6a48…` journal tail), suspend fix not yet confirmed applied, camera image tuning.
