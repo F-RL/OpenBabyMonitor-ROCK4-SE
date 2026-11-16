@@ -31,8 +31,10 @@ def load_config():
 def predict(session, feature):
     x = feature[np.newaxis, np.newaxis, :, :].astype(np.float32)
     out = session.run(None, {session.get_inputs()[0].name: x})[0].squeeze()
-    # The models output log10 probabilities (see control/listen.py).
-    probabilities = 10.0**out
+    # The last layer is nn.LogSoftmax (detection/neural_net.py), i.e. natural-log
+    # probabilities. Upstream control/listen.py applies 10** instead and
+    # renormalises, which sharpens them (p -> p**2.3); we show the true values.
+    probabilities = np.exp(out)
     return probabilities / probabilities.sum()
 
 

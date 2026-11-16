@@ -169,7 +169,7 @@ Parked: board power-off (inspect boot `8c1b6a48…` journal tail), suspend fix n
 - [x] USB mic found with `arecord -l`; test clip recorded successfully.
 - [x] Repo search: capture methods and stream formats (see OpenBabyMonitor findings).
 - [x] Cry model located: ONNX via OpenCV DNN.
-- [ ] Run `tools/test_crynet.py` on the board (copy `config control detection tools` to `~/obm`; venv `~/obm-venv` with `onnxruntime numpy scipy python_speech_features`). First without args (random input, timing), then `--device plughw:<card>,<dev>` for the live Notify path. The venv deps were installed, but the script has not been run yet (board powered off, see below).
+- [x] `tools/test_crynet.py` **runs on the board** (Nov 16, 2026): onnxruntime 1.32.0, numpy 2.4.6, Python 3.11 (fine; only upstream's pins in `requirements.txt` fail on 3.11), crynet_large 41.7 ms/inference per 2.06 s clip; live mic `plughw:0,0` in a quiet room → ambient=1.000, bg ≈ -14.6 dB, contrast ≈ 2 dB. Still to do: positive test (play a baby-cry clip near the mic). **Upstream bug found:** model ends in `nn.LogSoftmax` (natural log) but `control/listen.py:330` uses `10**out` + renormalise → probabilities sharpened to p^2.3, so upstream's 85% threshold is effectively looser. Test script now uses `np.exp`. Decide for crydetect: true probabilities with a retuned threshold, or replicate upstream for parity.
 - [x] `setup_device.sh` raspi-config calls listed.
 - [x] Decided: exclusive modes, as upstream.
 - [x] Decided: SQLite for settings.
