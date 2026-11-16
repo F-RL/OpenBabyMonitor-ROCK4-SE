@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Log in · Baby monitor{% endblock %}
+{% block content %}
+{% if password_set %}
+<form method="post" class="card login">
+  <label for="password">Password</label>
+  <input id="password" name="password" type="password" autocomplete="current-password" autofocus required>
+  <button type="submit">Log in</button>
+</form>
+{% else %}
+<p class="card">No password has been set yet. On the device, run
+  <code>flask --app babymonitor set-password</code>.</p>
+{% endif %}
+{% endblock %}

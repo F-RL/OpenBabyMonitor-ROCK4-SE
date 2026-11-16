@@ -1,0 +1,17 @@
+[Unit]
+Description=Baby monitor Listen mode (mic -> MediaMTX)
+Requires=babymonitor-mediamtx.service
+After=babymonitor-mediamtx.service
+Conflicts=babymonitor-videostream.service babymonitor-crydetect.service
+
+[Service]
+User=babymonitor
+Group=babymonitor
+SupplementaryGroups=audio
+EnvironmentFile=/etc/babymonitor/streams.env
+ExecStart=/usr/bin/gst-launch-1.0 -e \
+    rtspclientsink name=rtsp location=rtsp://127.0.0.1:8554/mic protocols=tcp \
+    alsasrc device=${MIC} ! queue ! audioconvert ! audioresample ! audio/x-raw,rate=48000,channels=1 \
+        ! opusenc bitrate=${OPUS_BPS} ! queue ! rtsp.
+Restart=on-failure
+RestartSec=2

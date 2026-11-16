@@ -71,19 +71,7 @@ The mainpath has its own scaler, so 1920×1080 or 1280×720 can be requested dir
 
 ## Build history (reference only)
 
-libcamera (Raspberry Pi fork, version 0.8.0) was built from source into `/usr/local` with GCC and compiled successfully; it is not needed for the chosen V4L2 approach. rpicam-apps was not built. Consider removing the `/usr/local` libcamera install later so it does not confuse other software.
-
-| Problem | Fix applied |
-| --- | --- |
-| No prebuilt rpicam-apps outside Raspberry Pi OS | Build from source (later abandoned) |
-| `libdrm-dev` unmet dependency on `libdrm2` | Install from `bookworm-backports` |
-| meson: `ipas` does not accept `auto` | Dropped `-Dipas=auto`; IPAs follow enabled pipelines |
-| ninja: `build.ninja` missing | meson setup had failed; rerun and read the error |
-| `libevent_pthreads` not found | `apt install libevent-dev` |
-| Clang `-Wc99-designator` error under `-Werror` | Build with GCC: `CC=gcc CXX=g++ meson setup …` |
-| `GLES2/gl2.h` missing (software ISP GPU path) | `apt install libgles-dev libegl-dev` |
-
-On this system `c++` points to Clang. Use GCC explicitly for any native C/C++ builds.
+libcamera 0.8.0 (RPi fork) was built into `/usr/local` with GCC but is unused (V4L2 approach); consider removing it. Lessons: graphics `-dev` packages must come from `bookworm-backports`; `c++` is Clang on this system, so use `CC=gcc CXX=g++` for native builds.
 
 ## OpenBabyMonitor findings
 
@@ -151,9 +139,16 @@ Design notes:
 Media inputs proven: camera (V4L2 + rkisp_3A), sensor flip, hardware H.264 encoder, and a working Observe HLS prototype (`tools/test_observe.sh hls`, plays in VLC). Next session, in order:
 
 1. Confirm the remaining Observe facts: ~~audio present in the HLS stream~~ (confirmed Nov 16, 2026), ~~CPU~~ (~27% of one core, fine), ~~latency~~ (~8 s with HLS; **WebRTC via MediaMTX <1 s, Nov 16, 2026** — adopted).
-2. ~~Run `tools/test_crynet.py` on the board~~ (runs, Nov 16, 2026); still do a positive test with a baby-cry clip.
+2. ~~Run `tools/test_crynet.py` on the board~~ (runs; positive cry test passed, Nov 16, 2026).
 3. Quick Listen test: `tools/test_webrtc.sh audio` (ALSA → Opus → MediaMTX path `mic`, view `http://<ip>:8889/mic/`). **Works on the board (Nov 16, 2026).**
-4. Then start the Flask app: login, mode switching between `babymonitor-*` units, SQLite settings.
+4. ~~Start the Flask app~~ Skeleton written Nov 16, 2026 in `server/` (see `server/README.md`), 17 pytest tests pass locally (Windows, Python 3.9, fake agent). Not yet run on the board.
+
+### Flask app status (Nov 16, 2026)
+
+- `server/babymonitor/`: single-password login (hash + session secret in SQLite key/value `settings`), `GET/PUT /api/mode` → host agent, `/auth/stream` for Caddy `forward_auth`, page with mode buttons + WHEP player (`static/whep.js`, retries until stream is up, muted fallback + "tap for sound").
+- `server/hostagent.py`: root, stdlib only, Unix socket `/run/babymonitor/agent.sock` (group `babymonitor`), actions get_mode/set_mode/reboot/shutdown; set_mode stops other units then starts target.
+- `server/deploy/`: Caddyfile (`tls internal`, `/stream/*` → MediaMTX after forward-auth, Location rewrite), `mediamtx.yml` (localhost only + UDP 8189), `streams.env` (MIC etc.), units web/agent/mediamtx/videostream/audiostream. One service user `babymonitor` (audio, video groups).
+- Next: deploy to the board and test end to end; then crydetect service + SSE alerts; settings UI (Wi-Fi/hotspot, country, time zone, reboot); setup script. Unverified on board: MediaMTX config keys with latest release, Caddy `header_down` regex syntax on bookworm's Caddy 2.6.
 
 Parked: board power-off (inspect boot `8c1b6a48…` journal tail), suspend fix not yet confirmed applied, camera image tuning.
 
@@ -169,7 +164,7 @@ Parked: board power-off (inspect boot `8c1b6a48…` journal tail), suspend fix n
 - [x] USB mic found with `arecord -l`; test clip recorded successfully.
 - [x] Repo search: capture methods and stream formats (see OpenBabyMonitor findings).
 - [x] Cry model located: ONNX via OpenCV DNN.
-- [x] `tools/test_crynet.py` **runs on the board** (Nov 16, 2026): onnxruntime 1.32.0, numpy 2.4.6, Python 3.11 (fine; only upstream's pins in `requirements.txt` fail on 3.11), crynet_large 41.7 ms/inference per 2.06 s clip; live mic `plughw:0,0` in a quiet room → ambient=1.000, bg ≈ -14.6 dB, contrast ≈ 2 dB. Still to do: positive test (play a baby-cry clip near the mic). **Upstream bug found:** model ends in `nn.LogSoftmax` (natural log) but `control/listen.py:330` uses `10**out` + renormalise → probabilities sharpened to p^2.3, so upstream's 85% threshold is effectively looser. Test script now uses `np.exp`. Decide for crydetect: true probabilities with a retuned threshold, or replicate upstream for parity.
+- [x] `tools/test_crynet.py` **runs on the board** (Nov 16, 2026): onnxruntime 1.32.0, numpy 2.4.6, Python 3.11 (fine; only upstream's pins in `requirements.txt` fail on 3.11), crynet_large 41.7 ms/inference per 2.06 s clip; live mic `plughw:0,0` in a quiet room → ambient=1.000, bg ≈ -14.6 dB, contrast ≈ 2 dB. Positive test passed Nov 16, 2026 once the right card was used (`plughw:0,0` was wrong: user had read `aplay -l`; always take the card from `arecord -l`, USB line). Recording/cry side considered done. **Upstream bug found:** model ends in `nn.LogSoftmax` (natural log) but `control/listen.py:330` uses `10**out` + renormalise → probabilities sharpened to p^2.3, so upstream's 85% threshold is effectively looser. Test script now uses `np.exp`. Decide for crydetect: true probabilities with a retuned threshold, or replicate upstream for parity.
 - [x] `setup_device.sh` raspi-config calls listed.
 - [x] Decided: exclusive modes, as upstream.
 - [x] Decided: SQLite for settings.

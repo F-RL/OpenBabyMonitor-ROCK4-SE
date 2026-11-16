@@ -1,0 +1,15 @@
+[Unit]
+Description=Baby monitor web service (Flask)
+After=network.target babymonitor-agent.service
+
+[Service]
+User=babymonitor
+Group=babymonitor
+WorkingDirectory=/opt/babymonitor/server
+Environment=BM_DATABASE=/var/lib/babymonitor/babymonitor.sqlite3
+ExecStart=/opt/babymonitor/venv/bin/gunicorn --bind 127.0.0.1:8000 --workers 2 --threads 4 "babymonitor:create_app()"
+StateDirectory=babymonitor
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

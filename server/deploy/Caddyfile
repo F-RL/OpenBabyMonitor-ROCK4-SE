@@ -1,0 +1,22 @@
+# HTTPS front for the baby monitor. Install to /etc/caddy/Caddyfile.
+# Caddy's internal CA issues the certificate; browsers will warn once until the
+# root (/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt) is trusted.
+{$BM_HOSTNAME:rock-4se}, {$BM_HOSTNAME:rock-4se}.local, localhost {
+	tls internal
+
+	# WebRTC signalling (WHEP) goes to MediaMTX, but only for logged-in browsers.
+	handle /stream/* {
+		forward_auth 127.0.0.1:8000 {
+			uri /auth/stream
+		}
+		uri strip_prefix /stream
+		reverse_proxy 127.0.0.1:8889 {
+			# MediaMTX answers with session URLs relative to its own root.
+			header_down Location "^/" "/stream/"
+		}
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:8000
+	}
+}

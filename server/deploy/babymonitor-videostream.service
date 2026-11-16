@@ -1,0 +1,21 @@
+[Unit]
+Description=Baby monitor Observe mode (camera + mic -> MediaMTX)
+Requires=babymonitor-mediamtx.service
+After=babymonitor-mediamtx.service rkisp_3A.service
+Conflicts=babymonitor-audiostream.service babymonitor-crydetect.service
+
+[Service]
+User=babymonitor
+Group=babymonitor
+SupplementaryGroups=audio video
+EnvironmentFile=/etc/babymonitor/streams.env
+# The flip controls change the Bayer layout, so they must be set before streaming.
+ExecStartPre=/usr/bin/v4l2-ctl -d /dev/v4l-subdev2 -c horizontal_flip=${FLIP},vertical_flip=${FLIP}
+ExecStart=/usr/bin/gst-launch-1.0 -e \
+    rtspclientsink name=rtsp location=rtsp://127.0.0.1:8554/cam protocols=tcp \
+    v4l2src device=/dev/video0 ! video/x-raw,format=NV12,width=${WIDTH},height=${HEIGHT} ! queue \
+        ! mpph264enc bps=${BPS} gop=${GOP} profile=66 ! h264parse config-interval=-1 ! queue ! rtsp. \
+    alsasrc device=${MIC} ! queue ! audioconvert ! audioresample ! audio/x-raw,rate=48000,channels=1 \
+        ! opusenc bitrate=${OPUS_BPS} ! queue ! rtsp.
+Restart=on-failure
+RestartSec=2

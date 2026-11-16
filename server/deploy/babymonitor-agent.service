@@ -1,0 +1,11 @@
+[Unit]
+Description=Baby monitor host agent (whitelisted root actions)
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/babymonitor/server/hostagent.py --socket /run/babymonitor/agent.sock --group babymonitor
+RuntimeDirectory=babymonitor
+RuntimeDirectoryPreserve=yes
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

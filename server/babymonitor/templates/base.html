@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Baby monitor{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+  <header>
+    <h1>Baby monitor</h1>
+    {% if logged_in %}
+    <form method="post" action="{{ url_for('auth.logout') }}">
+      <button type="submit" class="link">Log out</button>
+    </form>
+    {% endif %}
+  </header>
+  <main>
+    {% for message in get_flashed_messages() %}
+    <p class="error" role="alert">{{ message }}</p>
+    {% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

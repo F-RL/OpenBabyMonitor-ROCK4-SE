@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block content %}
+<nav class="modes" aria-label="Mode">
+  {% for mode in modes %}
+  <button type="button" data-mode="{{ mode }}">{{ mode | capitalize }}</button>
+  {% endfor %}
+</nav>
+<p id="status" class="status" aria-live="polite">Loading…</p>
+
+<section id="player" class="player" hidden>
+  <video id="video" playsinline autoplay></video>
+  <button type="button" id="unmute" hidden>Tap to turn on sound</button>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>window.WHEP_BASE = {{ whep_base | tojson }};</script>
+<script src="{{ url_for('static', filename='whep.js') }}"></script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+{% endblock %}

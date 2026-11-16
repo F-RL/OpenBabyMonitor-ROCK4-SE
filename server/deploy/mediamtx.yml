@@ -1,0 +1,33 @@
+# MediaMTX configuration for the baby monitor. Install to /etc/babymonitor/mediamtx.yml.
+# Only WebRTC playback (via Caddy) and RTSP publishing from the stream units are used;
+# everything listens on localhost except the WebRTC media port (UDP 8189).
+logLevel: info
+
+api: no
+metrics: no
+pprof: no
+playback: no
+rtmp: no
+hls: no
+srt: no
+
+rtsp: yes
+rtspAddress: 127.0.0.1:8554
+
+webrtc: yes
+webrtcAddress: 127.0.0.1:8889
+webrtcLocalUDPAddress: :8189
+
+# Browsers are checked by Flask before Caddy forwards to MediaMTX, so here we only
+# have to make sure nothing outside the device can publish or read.
+authMethod: internal
+authInternalUsers:
+  - user: any
+    ips: ['127.0.0.1/32', '::1/128']
+    permissions:
+      - action: publish
+      - action: read
+
+paths:
+  cam: {}   # Observe: H.264 + Opus from babymonitor-videostream
+  mic: {}   # Listen: Opus from babymonitor-audiostream

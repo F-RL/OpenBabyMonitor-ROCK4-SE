@@ -1,0 +1,12 @@
+[Unit]
+Description=Baby monitor media server (MediaMTX)
+After=network.target
+
+[Service]
+User=babymonitor
+Group=babymonitor
+ExecStart=/opt/babymonitor/mediamtx/mediamtx /etc/babymonitor/mediamtx.yml
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

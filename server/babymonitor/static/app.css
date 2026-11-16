@@ -1,0 +1,108 @@
+:root {
+  --bg: #f6f5f2;
+  --surface: #ffffff;
+  --text: #1f2328;
+  --muted: #5f6670;
+  --accent: #2f6f8f;
+  --accent-text: #ffffff;
+  --border: #d8d6d0;
+  --error: #b3261e;
+  color-scheme: light dark;
+}
+
+/* Dark by default at night: the monitor is mostly used in a dark room. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121416;
+    --surface: #1c1f22;
+    --text: #e6e6e3;
+    --muted: #9aa0a6;
+    --accent: #6fb3d2;
+    --accent-text: #0d1a20;
+    --border: #2e3236;
+    --error: #f2b8b5;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+h1 { font-size: 1.1rem; margin: 0; }
+
+main { max-width: 960px; margin: 0 auto; padding: 16px; }
+
+button {
+  font: inherit;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+button[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+button:disabled { opacity: 0.6; cursor: progress; }
+
+button.link { border: none; background: none; color: var(--accent); padding: 4px 0; }
+
+.modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+
+.status { color: var(--muted); min-height: 1.5em; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.login { display: flex; flex-direction: column; gap: 8px; max-width: 320px; margin: 10vh auto 0; }
+
+input {
+  font: inherit;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.error { color: var(--error); }
+
+.player { position: relative; margin-top: 8px; }
+
+.player video {
+  width: 100%;
+  max-height: 75vh;
+  background: #000;
+  border-radius: 12px;
+}
+
+.player.audio-only video { height: 0; }
+
+#unmute { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.player.audio-only #unmute { position: static; transform: none; }
+
+@media (max-width: 480px) {
+  .modes { grid-template-columns: repeat(2, 1fr); }
+}
