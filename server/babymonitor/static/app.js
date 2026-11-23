@@ -128,6 +128,9 @@ unmuteBtn.addEventListener('click', () => {
 
 buttons.forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
 
+// The board has no clock battery; without internet its clock is set from browsers.
+api('POST', '/api/system/time', { time: Date.now() / 1000 }).catch(() => {});
+
 api('GET', '/api/mode')
   .then(showMode)
   .catch((err) => { statusEl.textContent = `Could not read mode: ${err.message}`; });

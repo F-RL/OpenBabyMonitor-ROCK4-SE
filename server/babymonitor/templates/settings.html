@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block title %}Settings · Baby monitor{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('index') }}">← Back to the monitor</a></p>
+
+<section class="card settings-section" aria-labelledby="h-status">
+  <h2 id="h-status">Device</h2>
+  <dl class="facts">
+    <dt>Host name</dt><dd id="s-hostname">–</dd>
+    <dt>Clock</dt><dd id="s-clock">–</dd>
+    <dt>Temperature</dt><dd id="s-temperature">–</dd>
+    <dt>Running for</dt><dd id="s-uptime">–</dd>
+    <dt>Network</dt><dd id="s-network">–</dd>
+  </dl>
+</section>
+
+<section class="card settings-section" aria-labelledby="h-wifi">
+  <h2 id="h-wifi">Wi-Fi</h2>
+  <p id="connect-state" class="muted" aria-live="polite"></p>
+  <p><button type="button" id="scan">Find networks</button></p>
+  <ul id="scan-results" class="network-list"></ul>
+  <form id="connect-form" class="stack" hidden>
+    <label>Network name <input name="ssid" required maxlength="32"></label>
+    <label>Password <input name="password" type="password" autocomplete="off"
+      minlength="8" maxlength="63" placeholder="Leave empty for saved or open networks"></label>
+    <p class="muted">The monitor leaves its current network to join this one. If this
+      page was opened through the monitor's hotspot, connect this phone to the same
+      network, then open the monitor again (by name, or the address your router shows).
+      If joining fails, the monitor returns to its hotspot.</p>
+    <div class="row"><button type="submit">Connect</button>
+      <button type="button" id="connect-cancel" class="link">Cancel</button></div>
+  </form>
+  <h3>Saved networks</h3>
+  <ul id="saved" class="network-list"></ul>
+</section>
+
+<section class="card settings-section" aria-labelledby="h-hotspot">
+  <h2 id="h-hotspot">Hotspot</h2>
+  <p class="muted">When no saved network is reachable for about two minutes, the monitor
+    starts its own Wi-Fi network. Connect to it and open <code>https://192.168.4.1</code>.
+    While nobody uses the hotspot, the monitor looks for saved networks every 10 minutes.</p>
+  <p id="hotspot-state" aria-live="polite"></p>
+  <form id="hotspot-form" class="stack">
+    <label>Hotspot name <input name="ssid" required maxlength="32"></label>
+    <label>Hotspot password <input name="password" type="text" autocomplete="off"
+      required minlength="8" maxlength="63"></label>
+    <label>Channel <select name="channel">
+      <option value="0">Automatic</option>
+      {% for c in range(1, 14) %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+    </select></label>
+    <div class="row"><button type="submit">Save hotspot</button>
+      <button type="button" id="hotspot-start">Turn hotspot on now</button>
+      <button type="button" id="hotspot-stop" hidden>Turn hotspot off</button></div>
+  </form>
+</section>
+
+<section class="card settings-section" aria-labelledby="h-region">
+  <h2 id="h-region">Region</h2>
+  <form id="country-form" class="row">
+    <label>Wi-Fi country <select name="country" id="country"></select></label>
+    <button type="submit">Save</button>
+  </form>
+  <form id="timezone-form" class="row">
+    <label>Time zone <select name="timezone" id="timezone"></select></label>
+    <button type="submit">Save</button>
+  </form>
+</section>
+
+<section class="card settings-section" aria-labelledby="h-name">
+  <h2 id="h-name">Host name</h2>
+  <form id="hostname-form" class="row">
+    <label>Name on the network <input name="hostname" required maxlength="63"
+      pattern="[a-z0-9]([a-z0-9\-]*[a-z0-9])?"></label>
+    <button type="submit">Save</button>
+  </form>
+  <p class="muted">Lowercase letters, digits and hyphens. The browser will warn about
+    the certificate once for the new name. Restart afterwards so every service uses it.</p>
+</section>
+
+<section class="card settings-section" aria-labelledby="h-password">
+  <h2 id="h-password">Web password</h2>
+  <form id="password-form" class="stack">
+    <label>Current password <input name="current" type="password" required
+      autocomplete="current-password"></label>
+    <label>New password <input name="new" type="password" required minlength="8"
+      autocomplete="new-password"></label>
+    <label>Repeat new password <input name="repeat" type="password" required minlength="8"
+      autocomplete="new-password"></label>
+    <div class="row"><button type="submit">Change password</button></div>
+  </form>
+</section>
+
+<section class="card settings-section" aria-labelledby="h-power">
+  <h2 id="h-power">Power</h2>
+  <div class="row">
+    <button type="button" id="reboot">Restart</button>
+    <button type="button" id="shutdown">Shut down</button>
+  </div>
+  <p class="muted">After shutting down, the monitor needs its power cable unplugged and
+    plugged back in to start again.</p>
+</section>
+
+<p id="message" class="toast" role="status" aria-live="polite" hidden></p>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='settings.js') }}"></script>
+{% endblock %}

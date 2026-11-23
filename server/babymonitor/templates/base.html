@@ -10,9 +10,12 @@
   <header>
     <h1>Baby monitor</h1>
     {% if logged_in %}
-    <form method="post" action="{{ url_for('auth.logout') }}">
-      <button type="submit" class="link">Log out</button>
-    </form>
+    <nav class="header-links">
+      <a href="{{ url_for('system.settings_page') }}">Settings</a>
+      <form method="post" action="{{ url_for('auth.logout') }}">
+        <button type="submit" class="link">Log out</button>
+      </form>
+    </nav>
     {% endif %}
   </header>
   <main>

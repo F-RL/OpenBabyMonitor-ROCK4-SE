@@ -155,3 +155,39 @@ select {
   background: var(--bg);
   color: var(--text);
 }
+
+/* Header and settings page */
+a { color: var(--accent); }
+.header-links { display: flex; align-items: center; gap: 16px; }
+
+h2 { font-size: 1.1rem; margin: 0 0 12px; }
+h3 { font-size: 1rem; margin: 16px 0 8px; }
+.settings-section { margin-bottom: 16px; }
+.settings-section p { margin: 8px 0; }
+
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 0; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; overflow-wrap: anywhere; }
+
+.stack { display: grid; gap: 12px; max-width: 28em; }
+.stack label, .row label { display: grid; gap: 4px; }
+.row { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 12px; margin: 8px 0; }
+.row select { max-width: 100%; }
+
+.network-list { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 6px; }
+.network-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.network-list .network { width: 100%; display: flex; justify-content: space-between; gap: 12px; text-align: left; }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  margin: 0;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--text);
+  color: var(--bg);
+}
+.toast.error { background: var(--error); }

@@ -16,7 +16,8 @@ crydetect (Notify) ──SQLite──> Flask ──polled /api/notify──> bro
 | `babymonitor/static/whep.js` | Minimal WebRTC (WHEP) player for MediaMTX |
 | `babymonitor/notify.py`, `notify_settings.py`, `static/notify.js` | Notify settings API and form, live readings, alerts in the browser |
 | `crydetect/` | Notify mode's cry detector (`python -m crydetect --device plughw:1,0`): upstream's features and ONNX networks (`models/`) on onnxruntime |
-| `hostagent.py` | Root agent, standard library only |
+| `babymonitor/system.py`, `templates/settings.html`, `static/settings.js` | Settings page: Wi-Fi, hotspot, country, time zone, host name, password, restart/shut down |
+| `hostagent.py` | Root agent, standard library only; `hostagent_network.py` (nmcli, hotspot watchdog) and `hostagent_system.py` (time zone, clock, host name) |
 | `deploy/` | Caddyfile, `mediamtx.yml`, `streams.env`, systemd units |
 | `tests/` | `pytest` (no device needed) |
 
@@ -41,7 +42,7 @@ flask --app babymonitor run --debug
 
 ```bash
 sudo useradd --system --home /var/lib/babymonitor --groups audio,video babymonitor
-sudo apt install caddy gstreamer1.0-rtsp
+sudo apt install caddy gstreamer1.0-rtsp dnsmasq-base iw   # dnsmasq-base: hotspot DHCP
 sudo mkdir -p /opt/babymonitor /etc/babymonitor
 # The service user owns only its data directory; the code in /opt stays root-owned.
 sudo install -d -o babymonitor -g babymonitor -m 750 /var/lib/babymonitor
@@ -65,7 +66,6 @@ Then open `https://rock-4se/`.
 
 ## Not done yet
 
-- Settings UI: Wi-Fi / hotspot, country, time zone, reboot/shutdown buttons.
 - Setup script replacing the steps above.
 
 ## Notify mode
@@ -87,3 +87,23 @@ Differences from upstream, on purpose:
   (upstream alerted on one unsure clip), and "and" really needs both.
 - One continuous `arecord` instead of one per clip, so there are no gaps.
 - Mic gain is not set (upstream set 100% with `amixer`); set it once with `alsamixer`.
+
+## Settings and the hotspot
+
+`/settings` talks to the host agent, which drives NetworkManager:
+
+- Home networks are ordinary NetworkManager Wi-Fi connections. Joining one runs in
+  the background (the browser may be on the hotspot that is about to go away); a
+  failed attempt deletes the new profile and brings the hotspot back.
+- The hotspot is the connection `babymonitor-hotspot` (WPA2, `192.168.4.1/24`,
+  shared IPv4 via dnsmasq). It exists only once a name and password are saved on
+  the settings page; until then there is no fallback.
+- The agent's watchdog checks every minute: with neither Wi-Fi nor Ethernet
+  connected twice in a row it starts the hotspot (upstream: cron every 10 min).
+  While the hotspot runs and nobody is connected to it, every 10 minutes it tries
+  the saved networks for 45 s and goes back to the hotspot if none answers.
+- Wi-Fi country: `iw reg set` plus `/etc/modprobe.d/babymonitor-regdom.conf`.
+- The board has no clock battery. The main page sends the browser's time; the agent
+  sets the clock from it when NTP hasn't synchronised and it is >30 s off.
+- Not ported from upstream: changing the Linux user's password from the web page
+  (a stolen web password shouldn't also open SSH).

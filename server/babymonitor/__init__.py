@@ -8,7 +8,7 @@ from datetime import timedelta
 
 from flask import Flask
 
-from . import agent_client, auth, db, modes, notify, streams
+from . import agent_client, auth, db, modes, notify, streams, system
 
 
 def create_app(test_config=None):
@@ -39,5 +39,6 @@ def create_app(test_config=None):
     app.register_blueprint(modes.bp)
     app.register_blueprint(notify.bp)
     app.register_blueprint(streams.bp)
+    app.register_blueprint(system.bp)
     app.add_url_rule('/', endpoint='index', view_func=modes.index)
     return app
