@@ -225,6 +225,24 @@ $('hotspot-stop').addEventListener('click', (e) => {
   act(e.target, () => api('POST', '/api/network/hotspot/stop'), 'Hotspot off.').then(loadNetwork);
 });
 
+// --- Phone notifications ---
+
+async function loadPush() {
+  const p = await api('GET', '/api/notify/push');
+  $('push-off').hidden = p.enabled;
+  $('push-on').hidden = !p.enabled;
+  $('push-server').textContent = p.server;
+  $('push-topic').textContent = p.topic;
+  $('push-user').textContent = p.user;
+  $('push-cert').hidden = !p.certificate;
+  $('push-cert-missing').hidden = p.certificate;
+}
+
+$('push-test').addEventListener('click', (e) => {
+  act(e.target, () => api('POST', '/api/notify/push/test'),
+    'Test sent. It should appear on every subscribed phone within a few seconds.');
+});
+
 // --- Region, host name, password ---
 
 document.forms['country-form'].addEventListener('submit', (e) => {
@@ -279,3 +297,4 @@ loadSystem()
   .then((s) => loadTimezones(s.timezone))
   .catch((err) => say(`Could not read device settings: ${err.message}`, true));
 loadNetwork().catch((err) => say(`Could not read network settings: ${err.message}`, true));
+loadPush().catch((err) => say(`Could not read notification settings: ${err.message}`, true));

@@ -105,3 +105,25 @@ Differences from upstream, on purpose:
   sets the clock from it when NTP hasn't synchronised and it is >30 s off.
 - Not ported from upstream: changing the Linux user's password from the web page
   (a stolen web password shouldn't also open SSH).
+
+## Phone notifications (ntfy)
+
+Alerts also go to phones through a self-hosted [ntfy](https://ntfy.sh) server on the
+board (`babymonitor-ntfy`, `/etc/babymonitor/ntfy.yml`), reached by the phone apps at
+`https://<hostname>.local:8443` through Caddy (ntfy wants its own origin).
+
+- Nobody can read or write without logging in. The detector publishes to topic
+  `babymonitor` with a write-only token (user `monitor`, token in
+  `/etc/babymonitor/ntfy.env`); phones subscribe as read-only user `parent`, whose
+  password `install.sh` asks for.
+- Phones must trust the board's certificate (Caddy's own CA); the settings page offers
+  it for download, with steps for Android and iPhone.
+- Android keeps its own connection to the board: works on home Wi-Fi and on the
+  hotspot, with no internet at all.
+- iPhones can't keep a connection, so ntfy asks ntfy.sh (`upstream-base-url`) to wake
+  the app with only the message id; the app then fetches the text from the board.
+  Needs internet, so no iPhone alerts while on the hotspot. `base-url` in `ntfy.yml`
+  must equal the app's default server exactly.
+- Phones away from home get nothing: the server is only reachable on the local network.
+- If `<hostname>.local` doesn't resolve on a phone, give the board a fixed address in
+  the router and set `base-url` (and the apps) to `https://<that-ip>:8443`.

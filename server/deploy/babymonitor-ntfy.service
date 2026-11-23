@@ -1,0 +1,12 @@
+[Unit]
+Description=Baby monitor phone notifications (ntfy)
+After=network.target
+
+[Service]
+User=babymonitor
+Group=babymonitor
+ExecStart=/opt/babymonitor/ntfy/ntfy serve --config /etc/babymonitor/ntfy.yml
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

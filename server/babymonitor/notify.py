@@ -5,9 +5,12 @@ measurement to the `runtime` table and alerts to `notify_events`; the browser po
 GET /api/notify every couple of seconds while Notify is active. Polling instead of
 server-sent events keeps gunicorn's few threads free (an open tab would hold one).
 """
+import os
 import time
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request, send_file
+
+from crydetect import push
 
 from . import notify_settings
 from .auth import login_required
@@ -63,3 +66,31 @@ def get_state():
         events = notify_events_after(conn, after)
         last_id = events[-1]['id'] if events else after
     return jsonify(status=status, events=events, last_id=last_id)
+
+
+@bp.route('/api/notify/push', methods=['GET'])
+@login_required
+def push_info():
+    """What a phone's ntfy app needs to subscribe (never the publishing token)."""
+    cfg = push.config()
+    return jsonify(enabled=cfg['enabled'], server=cfg['public_url'], topic=cfg['topic'],
+                   user=cfg['phone_user'],
+                   certificate=bool(os.path.isfile(current_app.config['CA_CERT'])))
+
+
+@bp.route('/api/notify/push/test', methods=['POST'])
+@login_required
+def push_test():
+    error = push.send('test')
+    return (jsonify(error=error), 502) if error else jsonify(ok=True)
+
+
+@bp.route('/settings/root.crt')
+@login_required
+def ca_certificate():
+    """The board's own certificate authority (Caddy's), for phones to trust."""
+    path = current_app.config['CA_CERT']
+    if not os.path.isfile(path):
+        return 'Certificate not available yet: run the install script again.', 404
+    return send_file(path, mimetype='application/x-x509-ca-cert', as_attachment=True,
+                     download_name='babymonitor-root.crt')

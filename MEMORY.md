@@ -82,9 +82,17 @@ Nov 23: user confirmed Observe and Listen play in the UI after the `whep.js` fix
 - Needs `dnsmasq-base` and `iw` on the board. Unverified on the board: brcmfmac AP mode + scanning while AP, `iw reg set` effect on brcmfmac, nmcli terse escaping of hotspot psk.
 - Linux user password change deliberately not ported. Dev tests: 63 pass.
 
+### Phone push via self-hosted ntfy (Nov 23, 2026, not yet tested on the board)
+
+- User chose: ntfy on the board, phones Android + iPhone. Explained limits: LAN/hotspot only; iPhone needs internet (upstream-base-url ntfy.sh wake-up) and trusting Caddy's CA profile; Android app imports the PEM.
+- `babymonitor-ntfy` (127.0.0.1:2586, `/etc/babymonitor/ntfy.yml`, deny-all auth, web-root disabled) behind Caddy `https://:8443` (sub-path hosting undocumented in ntfy, so own port). base-url default `https://<hostname>.local:8443` (avahi-daemon added).
+- `crydetect/push.py` (stdlib urllib, background thread) publishes alerts; env from `/etc/babymonitor/ntfy.env` (token of write-only user `monitor`). Settings page: server/topic/user, setup steps, test button, `/settings/root.crt` download (copy of Caddy root in `/var/lib/babymonitor/caddy-root.crt`).
+- install.sh: downloads ntfy arm64 release, creates users via `ntfy user add` with NTFY_PASSWORD env + stdin (unverified which works), `ntfy access`, `ntfy token add` (token parsed by `tk_` regex). Unverified on board: these CLI details, `.local` resolution on Android, app menu names. Tests: 69 pass.
+
 ## Next steps
 
-1. **Pending user test of `server/deploy/install.sh`** (Nov 23): run `git pull && sudo server/deploy/install.sh` on the board; it should be a no-op-ish update (keeps streams.env, DB, hotspot). Untested parts: fresh install, MediaMTX download, prompts.
+1. **Pending user test of ntfy phone notifications**: run install.sh (asks for the phone password), set up a phone per the settings page, send a test.
+1b. **Pending user test of `server/deploy/install.sh`** (Nov 23): run `git pull && sudo server/deploy/install.sh` on the board; it should be a no-op-ish update (keeps streams.env, DB, hotspot). Untested parts: fresh install, MediaMTX download, prompts.
 2. Optional: page message when the detector gives no readings (first board run sat on "Waiting for the first recording…" because `MIC` in `/etc/babymonitor/streams.env` pointed at the wrong card; fixed by the user via `arecord -l`). Tune defaults on real crying if needed.
 3. Mic gain per mode. Pink tint is a known quirk of this camera (no IR-cut), accepted by the user Nov 23; don't work on image tuning unless asked.
 

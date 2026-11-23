@@ -8,8 +8,11 @@
 # things that are not set up yet:
 #   - the web password                (or set BM_PASSWORD)
 #   - the fallback hotspot password   (or set BM_HOTSPOT_PASSWORD; empty skips it)
+#   - the phones' notification password (or set BM_NTFY_PASSWORD; empty skips it)
 # Other overrides: MIC=plughw:1,0 (default: first USB card in `arecord -l`),
-# MTX_VERSION=v1.x.y (MediaMTX release, default: latest; only used when not installed).
+# MTX_VERSION=v1.x.y (MediaMTX release, default: latest; only used when not installed),
+# NTFY_BASE_URL=https://name:8443 (address phones use for notifications, default
+# https://<hostname>.local:8443; only used when /etc/babymonitor/ntfy.yml doesn't exist).
 set -euo pipefail
 
 REPO=$(cd "$(dirname "$(readlink -f "$0")")/../.." && pwd)
@@ -18,7 +21,9 @@ CONF=/etc/babymonitor
 DATA=/var/lib/babymonitor
 USER_NAME=babymonitor
 DB=$DATA/babymonitor.sqlite3
-UNITS=(babymonitor-agent babymonitor-mediamtx babymonitor-web)
+UNITS=(babymonitor-agent babymonitor-mediamtx babymonitor-ntfy babymonitor-web)
+NTFY_TOPIC=babymonitor
+NTFY_PHONE_USER=parent
 
 step() { printf '\n== %s\n' "$*"; }
 warn() { printf 'WARNING: %s\n' "$*" >&2; }
@@ -31,7 +36,8 @@ step "Packages"
 apt-get update -qq
 # dnsmasq-base: DHCP for the hotspot. The Rockchip encoder (gstreamer1.0-rockchip1)
 # comes from Radxa's repository and is checked below rather than installed.
-apt-get install -y -qq caddy python3-venv alsa-utils v4l-utils iw dnsmasq-base curl \
+# avahi-daemon: the board answers to <hostname>.local.
+apt-get install -y -qq caddy python3-venv alsa-utils v4l-utils iw dnsmasq-base curl avahi-daemon \
     gstreamer1.0-tools gstreamer1.0-alsa gstreamer1.0-rtsp \
     gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad >/dev/null
 for element in mpph264enc rtspclientsink opusenc alsasrc v4l2src; do
@@ -94,6 +100,65 @@ if [ -f /etc/caddy/Caddyfile ] && ! cmp -s /etc/caddy/Caddyfile "$REPO/server/de
 fi
 install -m 644 "$REPO/server/deploy/Caddyfile" /etc/caddy/Caddyfile
 
+step "Phone notifications (ntfy)"
+if [ -x "$PREFIX/ntfy/ntfy" ]; then
+    echo "Installed: $PREFIX/ntfy/ntfy"
+else
+    url=$(curl -fsSL https://api.github.com/repos/binwiederhier/ntfy/releases/latest \
+          | grep -oE '"browser_download_url": *"[^"]*linux_arm64\.tar\.gz"' | head -1 \
+          | sed -E 's/.*"(https[^"]+)"/\1/')
+    [ -n "$url" ] || { echo "Could not find the ntfy arm64 release" >&2; exit 1; }
+    echo "Downloading $url"
+    install -d -m 755 "$PREFIX/ntfy"
+    curl -fsSL "$url" | tar -xz --strip-components=1 -C "$PREFIX/ntfy"
+fi
+install -d -o "$USER_NAME" -g "$USER_NAME" -m 750 "$DATA/ntfy"
+if [ ! -f "$CONF/ntfy.yml" ]; then
+    base=${NTFY_BASE_URL:-https://$(hostname).local:8443}
+    sed "s|BASE_URL|$base|" "$REPO/server/deploy/ntfy.yml" > "$CONF/ntfy.yml"
+    echo "Created $CONF/ntfy.yml (phones use $base)"
+fi
+public_url=$(sed -nE 's/^base-url: *"?([^"]*)"?.*/\1/p' "$CONF/ntfy.yml")
+ntfy_cli() {
+    runuser -u "$USER_NAME" -- env NTFY_CONFIG_FILE="$CONF/ntfy.yml" \
+        NTFY_AUTH_FILE="$DATA/ntfy/user.db" "$PREFIX/ntfy/ntfy" "$@"
+}
+ntfy_user_exists() { ntfy_cli user list 2>&1 | grep -qE "^user $1( |$)"; }
+ntfy_add_user() {  # name password
+    ntfy_user_exists "$1" ||
+        printf '%s\n%s\n' "$2" "$2" | NTFY_PASSWORD="$2" ntfy_cli user add "$1" >/dev/null
+}
+if ! grep -qs '^NTFY_TOKEN=tk_' "$CONF/ntfy.env"; then
+    # The detector publishes as 'monitor', which may only write; its password is never used.
+    ntfy_add_user monitor "$(head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')"
+    ntfy_cli access monitor "$NTFY_TOPIC" write-only >/dev/null
+    token=$(ntfy_cli token add monitor | grep -oE 'tk_[A-Za-z0-9]+' | head -1)
+    [ -n "$token" ] || { echo "Could not create an ntfy token" >&2; exit 1; }
+    (umask 027 && printf '%s\n' "NTFY_URL=http://127.0.0.1:2586" "NTFY_TOPIC=$NTFY_TOPIC" \
+        "NTFY_TOKEN=$token" "NTFY_PUBLIC_URL=$public_url" "NTFY_PHONE_USER=$NTFY_PHONE_USER" \
+        > "$CONF/ntfy.env")
+    chgrp "$USER_NAME" "$CONF/ntfy.env"
+    echo "Created $CONF/ntfy.env with a publishing token"
+fi
+sed -i -E "s|^NTFY_PUBLIC_URL=.*|NTFY_PUBLIC_URL=$public_url|" "$CONF/ntfy.env"
+if ntfy_user_exists "$NTFY_PHONE_USER"; then
+    echo "Phone user '$NTFY_PHONE_USER' exists."
+else
+    password=${BM_NTFY_PASSWORD:-}
+    if [ -z "$password" ] && interactive; then
+        echo "Phones log in to the notification server as '$NTFY_PHONE_USER'."
+        echo "Choose its password, or press Enter to skip phone notifications for now."
+        read -r -s -p "Notification password: " password; echo
+    fi
+    if [ -n "$password" ]; then
+        ntfy_add_user "$NTFY_PHONE_USER" "$password"
+        ntfy_cli access "$NTFY_PHONE_USER" "$NTFY_TOPIC" read-only >/dev/null
+        echo "Phone user '$NTFY_PHONE_USER' created."
+    else
+        echo "Skipped: no phone can subscribe until a password is set (run this script again)."
+    fi
+fi
+
 step "Services"
 install -m 644 "$REPO"/server/deploy/*.service /etc/systemd/system/
 systemctl daemon-reload
@@ -142,6 +207,18 @@ else
     fi
 fi
 
+step "Certificate for phones"
+# Phones must trust Caddy's own certificate authority (for the ntfy app, and to stop
+# the browser warning). The settings page offers this copy for download.
+ca=/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt
+for _ in 1 2 3 4 5; do [ -f "$ca" ] && break; sleep 1; done
+if [ -f "$ca" ]; then
+    install -o "$USER_NAME" -g "$USER_NAME" -m 644 "$ca" "$DATA/caddy-root.crt"
+    echo "Download it on the settings page (Phone notifications)."
+else
+    warn "Caddy's root certificate isn't there yet: open the web page once, then run this again"
+fi
+
 step "Checks"
 [ -e /dev/video0 ] || warn "No camera at /dev/video0 (enable the camera overlay with rsetup and reboot)"
 systemctl is-active -q rkisp_3A 2>/dev/null || warn "rkisp_3A is not running: the image will have no auto exposure"
@@ -153,6 +230,6 @@ ip=$(hostname -I | awk '{print $1}')
 cat <<EOF
 
 Done. Open https://$(hostname).local/ or https://${ip:-<board-ip>}/
-The browser warns about the certificate until it trusts Caddy's root certificate:
-  /var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt
+The browser warns about the certificate until it trusts the board's certificate
+(download it on the settings page). Phone notifications: see Settings on the page.
 EOF

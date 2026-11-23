@@ -14,6 +14,49 @@
   </dl>
 </section>
 
+<section class="card settings-section" aria-labelledby="h-push">
+  <h2 id="h-push">Phone notifications</h2>
+  <p class="muted">Alerts reach phones through the free <strong>ntfy</strong> app, even with
+    the screen locked, as long as the phone is on the same network as the monitor.</p>
+  <p id="push-off" hidden>Not set up yet: run the install script on the monitor.</p>
+  <div id="push-on" hidden>
+    <dl class="facts">
+      <dt>Server</dt><dd><code id="push-server"></code></dd>
+      <dt>Topic</dt><dd><code id="push-topic"></code></dd>
+      <dt>User</dt><dd><code id="push-user"></code> (password chosen during installation)</dd>
+    </dl>
+    <p><a id="push-cert" href="{{ url_for('notify.ca_certificate') }}">Download the monitor's
+      certificate</a><span id="push-cert-missing" class="muted" hidden>The certificate
+      isn't available yet: run the install script again.</span></p>
+    <details>
+      <summary>Android</summary>
+      <ol>
+        <li>Install ntfy from Google Play or F-Droid.</li>
+        <li>Download the certificate above. In ntfy's settings, find the certificates section and
+          add the downloaded file (newer app versions only).</li>
+        <li>In ntfy's settings, under users, add the server, user and password above.</li>
+        <li>Tap + and subscribe to the topic above, choosing "use another server" with the server above.</li>
+        <li>For a loud alarm: open the subscription's notification settings and allow it
+          to override Do Not Disturb.</li>
+      </ol>
+    </details>
+    <details>
+      <summary>iPhone</summary>
+      <ol>
+        <li>Open this page in Safari and download the certificate above. Settings →
+          Profile Downloaded → Install. Then Settings → General → About → Certificate
+          Trust Settings → turn on full trust for it.</li>
+        <li>Install ntfy from the App Store. In ntfy: Settings → Default server → the
+          server above, exactly. Then add the user and password in its users section.</li>
+        <li>Tap + → topic above → Subscribe.</li>
+        <li>iPhones are woken through ntfy.sh, so the monitor needs internet: no phone
+          alerts on iPhone while the monitor runs its own hotspot.</li>
+      </ol>
+    </details>
+    <p><button type="button" id="push-test">Send test notification</button></p>
+  </div>
+</section>
+
 <section class="card settings-section" aria-labelledby="h-wifi">
   <h2 id="h-wifi">Wi-Fi</h2>
   <p id="connect-state" class="muted" aria-live="polite"></p>

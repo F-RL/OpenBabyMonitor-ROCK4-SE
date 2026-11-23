@@ -18,6 +18,7 @@ import numpy as np
 from babymonitor import db, notify_settings
 from babymonitor.notify import STATUS_KEY
 
+from . import push
 from .detector import LABELS, create_notifier
 from .features import CLIP_SAMPLES, SAMPLE_RATE, FeatureExtractor, LoudnessAnalyzer, Standardizer
 
@@ -128,7 +129,9 @@ def run(device, database, models_dir):
     db.write_value(conn, 'runtime', STATUS_KEY, None)
     pipeline = Pipeline(models_dir)
     recorder = Recorder(device)
-    log.info('Listening on %s', device)
+    push_config = push.config()
+    log.info('Listening on %s; phone notifications %s', device,
+             'on' if push_config['enabled'] else 'off')
     try:
         while True:
             settings = notify_settings.merged(
@@ -141,6 +144,8 @@ def run(device, database, models_dir):
             if alert:
                 log.info('Alert: %s (%s)', alert, reading)
                 db.add_notify_event(conn, now, alert)
+                if push_config['enabled']:
+                    push.send_in_background(alert, push_config)
             if settings['interval']:
                 recorder.skip(settings['interval'])
     finally:

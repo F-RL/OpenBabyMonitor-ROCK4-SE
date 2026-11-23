@@ -32,3 +32,15 @@ https:// {
 		reverse_proxy 127.0.0.1:8000
 	}
 }
+
+# Phone notifications: the ntfy server, for the ntfy app on phones. ntfy wants its
+# own origin, so it gets its own port rather than a path.
+https://:8443 {
+	tls internal {
+		on_demand
+	}
+	reverse_proxy 127.0.0.1:2586 {
+		# Subscriptions are long-lived streams.
+		flush_interval -1
+	}
+}

@@ -7,6 +7,7 @@ User=babymonitor
 Group=babymonitor
 SupplementaryGroups=audio
 EnvironmentFile=/etc/babymonitor/streams.env
+EnvironmentFile=-/etc/babymonitor/ntfy.env
 Environment=BM_DATABASE=/var/lib/babymonitor/babymonitor.sqlite3
 WorkingDirectory=/opt/babymonitor/server
 ExecStart=/opt/babymonitor/venv/bin/python -m crydetect --device ${MIC}

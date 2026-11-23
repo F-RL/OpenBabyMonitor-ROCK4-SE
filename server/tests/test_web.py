@@ -191,3 +191,25 @@ def test_password_cli(tmp_path):
     result = runner.invoke(args=['set-password', '--password', 'correct horse'])
     assert result.exit_code == 0, result.output
     assert runner.invoke(args=['password-is-set']).exit_code == 0
+
+
+def test_push_info_and_certificate(client, app, monkeypatch, tmp_path):
+    login(client)
+    monkeypatch.setenv('NTFY_TOKEN', '')
+    info = client.get('/api/notify/push').get_json()
+    assert info['enabled'] is False and info['certificate'] is False
+    assert 'not set up' in client.post('/api/notify/push/test').get_json()['error']
+    assert client.get('/settings/root.crt').status_code == 404
+
+    monkeypatch.setenv('NTFY_TOKEN', 'tk_secret')
+    monkeypatch.setenv('NTFY_PUBLIC_URL', 'https://rock-4se.local:8443')
+    cert = tmp_path / 'root.crt'
+    cert.write_text('-----BEGIN CERTIFICATE-----\n')
+    app.config['CA_CERT'] = str(cert)
+    response = client.get('/api/notify/push')
+    assert response.get_json() == {'enabled': True, 'server': 'https://rock-4se.local:8443',
+                                   'topic': 'babymonitor', 'user': 'parent', 'certificate': True}
+    assert b'tk_secret' not in response.data
+    assert client.get('/settings/root.crt').data.startswith(b'-----BEGIN')
+    client.post('/logout')
+    assert client.get('/settings/root.crt').status_code == 302

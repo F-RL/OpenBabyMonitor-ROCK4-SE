@@ -1,0 +1,21 @@
+# ntfy server for phone notifications. Installed to /etc/babymonitor/ntfy.yml by
+# install.sh, which replaces BASE_URL. Only Caddy (port 8443) and the detector talk
+# to it directly.
+#
+# base-url must be exactly the "default server" entered in the iPhone ntfy app.
+base-url: "BASE_URL"
+listen-http: "127.0.0.1:2586"
+behind-proxy: true
+cache-file: "/var/lib/babymonitor/ntfy/cache.db"
+
+# Nobody may read or write without logging in: the detector publishes with a
+# write-only token, phones subscribe as a read-only user (see install.sh).
+auth-file: "/var/lib/babymonitor/ntfy/user.db"
+auth-default-access: "deny-all"
+enable-signup: false
+enable-login: false
+web-root: disable
+
+# iPhones can't keep a connection open: ntfy.sh wakes the app with only the
+# message id, and the app then fetches the message from this server.
+upstream-base-url: "https://ntfy.sh"

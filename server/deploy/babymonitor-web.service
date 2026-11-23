@@ -7,6 +7,7 @@ User=babymonitor
 Group=babymonitor
 WorkingDirectory=/opt/babymonitor/server
 Environment=BM_DATABASE=/var/lib/babymonitor/babymonitor.sqlite3
+EnvironmentFile=-/etc/babymonitor/ntfy.env
 ExecStart=/opt/babymonitor/venv/bin/gunicorn --bind 127.0.0.1:8000 --workers 2 --threads 4 "babymonitor:create_app()"
 StateDirectory=babymonitor
 Restart=on-failure

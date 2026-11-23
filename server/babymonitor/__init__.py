@@ -21,6 +21,8 @@ def create_app(test_config=None):
         # Where the browser sends WHEP requests: '/stream' behind Caddy, or e.g.
         # 'http://rock-4se:8889' when developing against MediaMTX directly.
         WHEP_BASE=os.environ.get('BM_WHEP_BASE', '/stream'),
+        # Copy of Caddy's root certificate, offered for download on the settings page.
+        CA_CERT=os.environ.get('BM_CA_CERT', '/var/lib/babymonitor/caddy-root.crt'),
         SESSION_COOKIE_SECURE=os.environ.get('BM_INSECURE_COOKIES') != '1',
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE='Strict',
