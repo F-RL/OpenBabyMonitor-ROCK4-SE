@@ -119,6 +119,13 @@ if [ ! -f "$CONF/ntfy.yml" ]; then
     echo "Created $CONF/ntfy.yml (phones use $base)"
 fi
 public_url=$(sed -nE 's/^base-url: *"?([^"]*)"?.*/\1/p' "$CONF/ntfy.yml")
+# The ntfy CLI needs the user database, which the server creates when it first starts.
+install -m 644 "$REPO/server/deploy/babymonitor-ntfy.service" /etc/systemd/system/
+systemctl daemon-reload
+systemctl restart babymonitor-ntfy
+for _ in $(seq 20); do [ -f "$DATA/ntfy/user.db" ] && break; sleep 0.5; done
+[ -f "$DATA/ntfy/user.db" ] ||
+    { echo "ntfy didn't start: journalctl -u babymonitor-ntfy -n 30" >&2; exit 1; }
 ntfy_cli() {
     runuser -u "$USER_NAME" -- env NTFY_CONFIG_FILE="$CONF/ntfy.yml" \
         NTFY_AUTH_FILE="$DATA/ntfy/user.db" "$PREFIX/ntfy/ntfy" "$@"
