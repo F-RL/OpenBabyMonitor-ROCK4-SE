@@ -86,7 +86,7 @@ Nov 23: user confirmed Observe and Listen play in the UI after the `whep.js` fix
 
 1. **Pending user test of `server/deploy/install.sh`** (Nov 23): run `git pull && sudo server/deploy/install.sh` on the board; it should be a no-op-ish update (keeps streams.env, DB, hotspot). Untested parts: fresh install, MediaMTX download, prompts.
 2. Optional: page message when the detector gives no readings (first board run sat on "Waiting for the first recording…" because `MIC` in `/etc/babymonitor/streams.env` pointed at the wrong card; fixed by the user via `arecord -l`). Tune defaults on real crying if needed.
-3. Possibly: image tuning (dark/pink), mic gain per mode.
+3. Mic gain per mode. Pink tint is a known quirk of this camera (no IR-cut), accepted by the user Nov 23; don't work on image tuning unless asked.
 
 Parked board issues (from Nov 15, 2026):
 

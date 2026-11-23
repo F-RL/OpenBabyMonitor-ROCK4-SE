@@ -63,7 +63,7 @@ Then open `https://rock-4se.local/` or `https://<board-ip>/`.
 
 ## Not done yet
 
-- Camera image tuning (dark in high contrast, pink without an IR-cut filter).
+- Camera image: pink tint is a known quirk of the Waveshare RPi Camera (F) (no IR-cut filter), accepted for now.
 - Mic gain per mode (upstream set it with `amixer`).
 
 ## Notify mode
