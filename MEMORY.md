@@ -68,7 +68,7 @@ Flask ─Unix socket─> hostagent.py (root): start/stop babymonitor-* units, re
 
 Nov 23: user confirmed Observe and Listen play in the UI after the `whep.js` fix.
 
-### Notify (Nov 23, 2026, not yet tested on the board)
+### Notify (Nov 23, 2026, verified on the board: readings and crying alerts work)
 
 - `server/crydetect/` (`python -m crydetect --device $MIC`, unit `babymonitor-crydetect.service`): one continuous `arecord`, 2.06 s clips, numpy-only port of upstream features (verified identical to python_speech_features to 1e-14), LoudnessAnalyzer, onnxruntime networks, notifiers with two upstream bugs fixed ("or" fired on one unsure clip; "and" acted as "or"). Re-reads settings from SQLite every clip.
 - Shared SQLite: `settings['notify']` (defs in `babymonitor/notify_settings.py`), `runtime['notify_status']` (latest reading), `notify_events` (alerts, last 100).
@@ -77,7 +77,7 @@ Nov 23: user confirmed Observe and Listen play in the UI after the `whep.js` fix
 
 ## Next steps
 
-1. **Pending user test of Notify:** pull, copy server, `pip install -r` (numpy, onnxruntime added), copy the new unit, daemon-reload, restart web/agent; then Notify mode: readings update, crying clip triggers alert. Logs: `journalctl -u babymonitor-crydetect`. Tune defaults on real crying if needed.
+1. Optional: page message when the detector gives no readings (first board run sat on "Waiting for the first recording…" because `MIC` in `/etc/babymonitor/streams.env` pointed at the wrong card; fixed by the user via `arecord -l`). Tune defaults on real crying if needed.
 2. Possibly: image tuning (dark/pink), mic gain per mode.
 3. Settings UI: Wi-Fi/hotspot (nmcli), country, time zone, password change (API exists), reboot/shutdown.
 4. Setup script replacing the manual README steps.
