@@ -75,7 +75,7 @@ Nov 23: user confirmed Observe and Listen play in the UI after the `whep.js` fix
 - Browser polls `GET /api/notify?after=<id>` every 2 s (chosen over SSE so tabs don't hold gunicorn threads). `static/notify.js`: readings, alert banner, WebAudio beeps after "Enable alarm" tap, vibrate, Notification API (fails on Android without a service worker), Wake Lock, settings form from `/api/notify/settings`, autoplay_on_notify → switch to Listen.
 - Dev tests: 36 pass (`pytest` in `server/`; venv needs numpy, onnxruntime optional). Mic gain not set by the service (use `alsamixer`).
 
-### Settings page (Nov 23, 2026, not yet tested on the board)
+### Settings page (Nov 23, 2026; on the board: saving the hotspot works after the channel-0 fix. Turning it on, scanning and joining not reported yet)
 
 - `/settings` (`babymonitor/system.py`, `settings.html`, `settings.js`) → agent actions in `hostagent_system.py` (status, time zones, `set_time` from browser clock when NTP unsynced, host name + `/etc/hosts`) and `hostagent_network.py` (nmcli: status, scan, connect in a background thread with result in `connect`, forget, hotspot `babymonitor-hotspot` AP 192.168.4.1/24 shared, country via `iw reg set` + modprobe.d).
 - Watchdog thread in the agent: no Wi-Fi/Ethernet for 2 checks (1/min) → hotspot; idle hotspot (no stations) → try saved networks every 10 min. Hotspot only exists after the user saves name+password.
@@ -84,10 +84,9 @@ Nov 23: user confirmed Observe and Listen play in the UI after the `whep.js` fix
 
 ## Next steps
 
-1. **Pending user test of the settings page** (Nov 23, see below).
+1. **Pending user test of `server/deploy/install.sh`** (Nov 23): run `git pull && sudo server/deploy/install.sh` on the board; it should be a no-op-ish update (keeps streams.env, DB, hotspot). Untested parts: fresh install, MediaMTX download, prompts.
 2. Optional: page message when the detector gives no readings (first board run sat on "Waiting for the first recording…" because `MIC` in `/etc/babymonitor/streams.env` pointed at the wrong card; fixed by the user via `arecord -l`). Tune defaults on real crying if needed.
 3. Possibly: image tuning (dark/pink), mic gain per mode.
-4. Setup script replacing the manual README steps (should also pick the USB mic from `arecord -l` and create the hotspot).
 
 Parked board issues (from Nov 15, 2026):
 

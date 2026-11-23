@@ -181,3 +181,13 @@ def test_network_settings_api(client):
     assert client.delete(f'/api/network/saved/{saved[1]["uuid"]}').status_code == 200
     assert client.put('/api/network/country', json={'country': 'NO'}).status_code == 200
     assert client.get('/api/network/scan').get_json()['networks'][0]['ssid'] == 'Home'
+
+
+def test_password_cli(tmp_path):
+    app = create_app({'TESTING': True, 'DATABASE': str(tmp_path / 'cli.sqlite3'),
+                      'AGENT_SOCKET': 'fake'})
+    runner = app.test_cli_runner()
+    assert runner.invoke(args=['password-is-set']).exit_code == 1
+    result = runner.invoke(args=['set-password', '--password', 'correct horse'])
+    assert result.exit_code == 0, result.output
+    assert runner.invoke(args=['password-is-set']).exit_code == 0

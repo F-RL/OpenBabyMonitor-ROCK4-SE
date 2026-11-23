@@ -38,35 +38,33 @@ flask --app babymonitor set-password
 flask --app babymonitor run --debug
 ```
 
-## Install on the board (manual, until a setup script exists)
+## Install or update on the board
+
+Prerequisites (once, by hand): Radxa Debian bookworm with Radxa's
+`gstreamer1.0-rockchip1`, the camera overlay enabled with `rsetup`
+(`rock-4-rpi-camera-v1_3`), the USB microphone plugged in.
 
 ```bash
-sudo useradd --system --home /var/lib/babymonitor --groups audio,video babymonitor
-sudo apt install caddy gstreamer1.0-rtsp dnsmasq-base iw   # dnsmasq-base: hotspot DHCP
-sudo mkdir -p /opt/babymonitor /etc/babymonitor
-# The service user owns only its data directory; the code in /opt stays root-owned.
-sudo install -d -o babymonitor -g babymonitor -m 750 /var/lib/babymonitor
-sudo cp -r server /opt/babymonitor/
-sudo python3 -m venv /opt/babymonitor/venv
-sudo /opt/babymonitor/venv/bin/pip install -r /opt/babymonitor/server/requirements.txt
-# MediaMTX: download the latest arm64 release into /opt/babymonitor/mediamtx
-sudo MTX_DIR=/opt/babymonitor/mediamtx bash tools/test_webrtc.sh install
-sudo cp server/deploy/mediamtx.yml server/deploy/streams.env /etc/babymonitor/   # edit MIC
-sudo cp server/deploy/Caddyfile /etc/caddy/Caddyfile
-sudo cp server/deploy/*.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now babymonitor-agent babymonitor-mediamtx babymonitor-web
-sudo systemctl reload caddy
-cd /opt/babymonitor/server && sudo -u babymonitor \
-    BM_DATABASE=/var/lib/babymonitor/babymonitor.sqlite3 \
-    /opt/babymonitor/venv/bin/flask --app babymonitor set-password
+git clone https://github.com/F-RL/OpenBabyMonitor-ROCK4-SE && cd OpenBabyMonitor-ROCK4-SE
+sudo server/deploy/install.sh
 ```
 
-Then open `https://rock-4se/`.
+To update later: `git pull && sudo server/deploy/install.sh`. The script is safe to
+re-run; it keeps `/etc/babymonitor/streams.env` and the database. What it does:
+installs packages; creates the `babymonitor` user, root-owned code in
+`/opt/babymonitor` and data in `/var/lib/babymonitor`; a venv with
+`requirements.txt`; MediaMTX (if missing); `streams.env` with the first USB mic from
+`arecord -l`; the Caddyfile (a different existing one is backed up) and systemd
+units; masks suspend; asks for the web password and the fallback hotspot password
+if not set yet (or `BM_PASSWORD` / `BM_HOTSPOT_PASSWORD`); and warns about a missing
+camera, encoder or mic. A running mode is stopped (the page starts in Standby).
+
+Then open `https://rock-4se.local/` or `https://<board-ip>/`.
 
 ## Not done yet
 
-- Setup script replacing the steps above.
+- Camera image tuning (dark in high contrast, pink without an IR-cut filter).
+- Mic gain per mode (upstream set it with `amixer`).
 
 ## Notify mode
 

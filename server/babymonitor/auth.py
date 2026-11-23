@@ -83,6 +83,14 @@ def set_password_command(password):
     click.echo('Password set.')
 
 
+@bp.cli.command('password-is-set')
+def password_is_set_command():
+    """Exit with 0 if a web password has been set, 1 if not (for the install script)."""
+    is_set = bool(get_setting('password_hash'))
+    click.echo('yes' if is_set else 'no')
+    raise SystemExit(0 if is_set else 1)
+
+
 @bp.app_context_processor
 def inject_login_state():
     return {'logged_in': is_logged_in(), 'whep_base': current_app.config['WHEP_BASE']}
