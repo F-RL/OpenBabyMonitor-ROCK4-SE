@@ -106,3 +106,49 @@ input {
 @media (max-width: 480px) {
   .modes { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* Notify mode */
+.muted { color: var(--muted); }
+
+.notify { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+.notify > p { margin: 0; }
+
+.alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 8px 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--error);
+  color: var(--bg);
+}
+.alert strong { font-size: 1.2rem; }
+.alert button { margin-left: auto; }
+
+.readings p { margin: 0 0 8px; }
+.readings dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 0; }
+.readings dt { color: var(--muted); }
+.readings dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+.meters { display: grid; gap: 6px; margin-top: 12px; }
+.meters label { display: grid; grid-template-columns: 6em 1fr 3.5em; align-items: center; gap: 8px; }
+.meters meter { width: 100%; }
+.meters span { text-align: right; font-variant-numeric: tabular-nums; }
+
+.settings summary { cursor: pointer; font-weight: 600; }
+.settings form { display: grid; gap: 12px; margin-top: 12px; }
+.setting { display: grid; gap: 4px; }
+.setting-bool { grid-template-columns: auto 1fr; align-items: center; gap: 8px; }
+.setting input[type="number"], .setting select { max-width: 12em; }
+.setting:has(:disabled) { opacity: 0.5; }
+
+select {
+  font: inherit;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}

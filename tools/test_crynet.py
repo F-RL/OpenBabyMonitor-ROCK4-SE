@@ -64,7 +64,7 @@ def main():
     label_names = {idx: name for name, idx in inference['labels'].items()}
     n_mel_bands, window_count = inference['input_shape']
 
-    model_path = ROOT / 'control' / inference['models'][args.model]
+    model_path = ROOT / 'server' / 'crydetect' / 'models' / inference['models'][args.model]
     session = ort.InferenceSession(str(model_path),
                                    providers=['CPUExecutionProvider'])
     print(f'onnxruntime {ort.__version__}, numpy {np.__version__}')
@@ -100,7 +100,7 @@ def main():
         extractor,
         min_sound_contrast=-np.inf,  # always return a feature
         amplification=args.amplification,
-        standardization_file=ROOT / 'control' / 'standardization.npz')
+        standardization_file=ROOT / 'server' / 'crydetect' / 'models' / 'standardization.npz')
 
     print(f'\nRecording from {args.device}, '
           f'{extractor.feature_duration:.2f} s per clip. Ctrl+C to stop.')

@@ -7,13 +7,50 @@
 </nav>
 <p id="status" class="status" aria-live="polite">Loading…</p>
 
+{# Outside the Notify section: stays visible after an alert switches to Listen. #}
+<div id="alert" class="alert" role="alert" hidden>
+  <strong id="alert-text"></strong>
+  <span id="alert-time" class="muted"></span>
+  <button type="button" id="alert-dismiss">Dismiss</button>
+</div>
+
 <section id="player" class="player" hidden>
   <video id="video" playsinline autoplay></video>
   <button type="button" id="unmute" hidden>Tap to turn on sound</button>
+</section>
+
+<section id="notify" class="notify" hidden>
+  <div class="card readings">
+    <p id="reading-state" class="muted">Waiting for the first recording…</p>
+    <dl>
+      <dt>Background</dt><dd id="reading-background">–</dd>
+      <dt>Sound above background</dt><dd id="reading-contrast">–</dd>
+    </dl>
+    <div id="reading-probabilities" class="meters" hidden>
+      {% for name in ('crying', 'babbling', 'ambient') %}
+      <label>{{ name | capitalize }}
+        <meter id="p-{{ name }}" min="0" max="1" value="0"></meter>
+        <span id="p-{{ name }}-text">–</span>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <p>
+    <button type="button" id="enable-alerts">Enable alarm on this device</button>
+    <span id="alerts-state" class="muted"></span>
+  </p>
+
+  <details class="card settings">
+    <summary>Notify settings</summary>
+    <form id="notify-settings" autocomplete="off"></form>
+    <p id="settings-message" class="muted" aria-live="polite"></p>
+  </details>
 </section>
 {% endblock %}
 {% block scripts %}
 <script>window.WHEP_BASE = {{ whep_base | tojson }};</script>
 <script src="{{ url_for('static', filename='whep.js') }}"></script>
+<script src="{{ url_for('static', filename='notify.js') }}"></script>
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 {% endblock %}

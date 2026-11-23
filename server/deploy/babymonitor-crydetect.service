@@ -1,0 +1,14 @@
+[Unit]
+Description=Baby monitor Notify mode (cry detection)
+Conflicts=babymonitor-audiostream.service babymonitor-videostream.service
+
+[Service]
+User=babymonitor
+Group=babymonitor
+SupplementaryGroups=audio
+EnvironmentFile=/etc/babymonitor/streams.env
+Environment=BM_DATABASE=/var/lib/babymonitor/babymonitor.sqlite3
+WorkingDirectory=/opt/babymonitor/server
+ExecStart=/opt/babymonitor/venv/bin/python -m crydetect --device ${MIC}
+Restart=on-failure
+RestartSec=2

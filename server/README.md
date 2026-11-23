@@ -7,12 +7,15 @@ browser ──HTTPS──> Caddy ──> gunicorn/Flask (UI, login, /api/*)     
                      └─/stream/* (WHEP, after /auth/stream) ──> MediaMTX :8889
 browser <──WebRTC media, UDP 8189──────────────────────────── MediaMTX
 Flask ──Unix socket──> hostagent.py (root): start/stop babymonitor-* units, reboot, shutdown
+crydetect (Notify) ──SQLite──> Flask ──polled /api/notify──> browser alerts
 ```
 
 | Path | What |
 | --- | --- |
 | `babymonitor/` | Flask app: `auth.py` (single password), `modes.py` (mode API + main page), `streams.py` (Caddy forward-auth), `db.py` (SQLite key/value settings), `agent_client.py` |
 | `babymonitor/static/whep.js` | Minimal WebRTC (WHEP) player for MediaMTX |
+| `babymonitor/notify.py`, `notify_settings.py`, `static/notify.js` | Notify settings API and form, live readings, alerts in the browser |
+| `crydetect/` | Notify mode's cry detector (`python -m crydetect --device plughw:1,0`): upstream's features and ONNX networks (`models/`) on onnxruntime |
 | `hostagent.py` | Root agent, standard library only |
 | `deploy/` | Caddyfile, `mediamtx.yml`, `streams.env`, systemd units |
 | `tests/` | `pytest` (no device needed) |
@@ -62,6 +65,25 @@ Then open `https://rock-4se/`.
 
 ## Not done yet
 
-- `babymonitor-crydetect.service` (Notify) and cry alerts to the browser (SSE).
 - Settings UI: Wi-Fi / hotspot, country, time zone, reboot/shutdown buttons.
 - Setup script replacing the steps above.
+
+## Notify mode
+
+`babymonitor-crydetect` records the mic continuously in 2.06 s clips and, per clip,
+measures loudness above the background and (unless the clip is quieter than
+`min_sound_contrast`) runs the cry network. It alerts when enough of the last few
+clips match. It writes the latest reading and alerts to the database; the page polls
+`/api/notify` every 2 s and alerts with a banner, beeps (after "Enable alarm" was
+tapped), vibration, a system notification where the browser allows it, and by
+default switches to Listen. Settings are re-read on every clip.
+
+Differences from upstream, on purpose:
+
+- Probabilities are the network's real ones (`exp` of its LogSoftmax output; upstream
+  used `10**`, which exaggerates them). The default certainty threshold is 65%,
+  about what upstream's 80% meant.
+- "Crying or babbling" only alerts when that share of recent clips is reached
+  (upstream alerted on one unsure clip), and "and" really needs both.
+- One continuous `arecord` instead of one per clip, so there are no gaps.
+- Mic gain is not set (upstream set 100% with `amixer`); set it once with `alsamixer`.

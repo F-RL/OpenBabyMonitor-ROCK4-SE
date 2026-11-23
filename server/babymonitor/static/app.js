@@ -38,6 +38,8 @@ async function api(method, path, body) {
 function showMode(state) {
   buttons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === state.mode)));
   statusEl.textContent = LABELS[state.mode] || state.mode;
+  if (state.mode === 'notify') notifyStart(() => setMode('listen'));
+  else notifyStop();
   startPlayer(state);
 }
 

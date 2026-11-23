@@ -1,2 +1,5 @@
 flask>=3.0
 gunicorn>=22.0
+# Cry detector (crydetect/, Notify mode)
+numpy>=1.21
+onnxruntime>=1.16

@@ -1,6 +1,6 @@
 import pytest
 
-from babymonitor import auth, create_app
+from babymonitor import auth, create_app, db
 
 PASSWORD = 'correct horse'
 
@@ -98,3 +98,42 @@ def test_tls_ask_allows_ips_and_own_hostname(client, monkeypatch):
         assert client.get('/auth/tls-ask', query_string={'domain': domain}).status_code == 200
     for domain in ('example.com', 'rock-4se.example.com', ''):
         assert client.get('/auth/tls-ask', query_string={'domain': domain}).status_code == 403
+
+
+def test_notify_api_requires_login(client):
+    assert client.get('/api/notify').status_code == 401
+    assert client.get('/api/notify/settings').status_code == 401
+    assert client.put('/api/notify/settings', json={}).status_code == 401
+
+
+def test_notify_settings(client):
+    login(client)
+    data = client.get('/api/notify/settings').get_json()
+    assert data['values']['model'] == 'large_network'
+    assert data['spec']['probability_threshold'] == {'type': 'int', 'default': 65,
+                                                     'min': 0, 'max': 100}
+    response = client.put('/api/notify/settings', json={'probability_threshold': 70})
+    assert response.get_json()['values']['probability_threshold'] == 70
+    assert client.put('/api/notify/settings', json={'model': 'x'}).status_code == 400
+    assert client.put('/api/notify/settings', json=[1]).status_code == 400
+    values = client.get('/api/notify/settings').get_json()['values']
+    assert values['probability_threshold'] == 70 and values['model'] == 'large_network'
+
+
+def test_notify_state_and_events(app, client):
+    login(client)
+    assert client.get('/api/notify').get_json() == {'status': None, 'events': [], 'last_id': 0}
+    with app.app_context():
+        conn = db.get_db()
+        db.add_notify_event(conn, 1.0, 'crying')
+        db.write_value(conn, 'runtime', 'notify_status',
+                       {'time': 5.0, 'background': 20.0, 'contrast': 3.0, 'probabilities': None})
+    # A fresh page skips old alerts.
+    first = client.get('/api/notify').get_json()
+    assert first['events'] == [] and first['last_id'] == 1
+    assert first['status']['contrast'] == 3.0 and first['status']['age'] > 0
+    with app.app_context():
+        db.add_notify_event(db.get_db(), 2.0, 'sound')
+    later = client.get('/api/notify', query_string={'after': 1}).get_json()
+    assert [e['kind'] for e in later['events']] == ['sound'] and later['last_id'] == 2
+    assert client.get('/api/notify', query_string={'after': 2}).get_json()['events'] == []
