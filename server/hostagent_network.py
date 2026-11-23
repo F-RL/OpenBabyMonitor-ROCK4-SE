@@ -246,9 +246,9 @@ class Network:
         validate_psk(password)
         if not isinstance(channel, int) or isinstance(channel, bool) or not 0 <= channel <= 13:
             raise ValueError('channel must be 0 (automatic) or 1-13')
-        settings = ['802-11-wireless.ssid', ssid,
-                    '802-11-wireless.channel', str(channel),
-                    'wifi-sec.psk', password]
+        settings = ['802-11-wireless.ssid', ssid, 'wifi-sec.psk', password]
+        # NetworkManager rejects an explicit channel 0; automatic means "unset".
+        channel_setting = ['802-11-wireless.channel', str(channel) if channel else '']
         with self.locked():
             devices = self.devices()
             if self.hotspot_config() is None:
@@ -261,9 +261,10 @@ class Network:
                            'ipv4.method', 'shared', 'ipv4.addresses', HOTSPOT_ADDRESS,
                            'ipv6.method', 'disabled',
                            'wifi-sec.key-mgmt', 'wpa-psk', 'wifi-sec.proto', 'rsn',
-                           'wifi-sec.pairwise', 'ccmp', 'wifi-sec.group', 'ccmp', *settings)
+                           'wifi-sec.pairwise', 'ccmp', 'wifi-sec.group', 'ccmp', *settings,
+                           *(channel_setting if channel else []))
             else:
-                self.nmcli('connection', 'modify', HOTSPOT, *settings)
+                self.nmcli('connection', 'modify', HOTSPOT, *settings, *channel_setting)
                 if any(d['connection'] == HOTSPOT for d in devices):
                     self.nmcli('connection', 'up', HOTSPOT, wait=SWITCH_WAIT_S)  # apply now
 

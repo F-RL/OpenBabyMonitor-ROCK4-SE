@@ -98,12 +98,19 @@ class FakeNM:
         if args[:2] == ['connection', 'add']:
             self.hotspot = {'ssid': args[args.index('802-11-wireless.ssid') + 1],
                             'psk': args[args.index('wifi-sec.psk') + 1],
-                            'channel': args[args.index('802-11-wireless.channel') + 1]}
+                            'channel': '0'}
+            if '802-11-wireless.channel' in args:
+                channel = args[args.index('802-11-wireless.channel') + 1]
+                assert channel != '0', 'NetworkManager rejects channel 0'
+                self.hotspot['channel'] = channel
             return done(argv)
         if args[:2] == ['connection', 'modify']:
             if args[2] == hn.HOTSPOT:
+                channel = args[args.index('802-11-wireless.channel') + 1]
+                assert channel != '0', 'NetworkManager rejects channel 0'
                 self.hotspot.update(ssid=args[args.index('802-11-wireless.ssid') + 1],
-                                    psk=args[args.index('wifi-sec.psk') + 1])
+                                    psk=args[args.index('wifi-sec.psk') + 1],
+                                    channel=channel or '0')
             return done(argv)
         if 'wifi' in args and 'list' in args:
             return done(argv, ' :Neighbour:40:WPA2\n*:Home:70:WPA2\n :Home:30:WPA2\n'
@@ -203,8 +210,12 @@ def test_set_hotspot_creates_then_modifies():
     add = next(c for c in nm.calls if c[1:3] == ['connection', 'add'])
     assert ['802-11-wireless.mode', 'ap'] == add[add.index('802-11-wireless.mode'):][:2]
     assert hn.HOTSPOT_ADDRESS in add and 'autoconnect' in add
+    assert nm.hotspot['channel'] == '6'
     n.set_hotspot('nursery2', 'longenough2', 0)
-    assert nm.hotspot['ssid'] == 'nursery2'
+    assert nm.hotspot == {'ssid': 'nursery2', 'psk': 'longenough2', 'channel': '0'}
+    nm2 = FakeNM(hotspot=False)
+    network(nm2)[0].set_hotspot('nursery', 'longenough', 0)  # automatic on creation
+    assert nm2.hotspot['channel'] == '0'
     with pytest.raises(ValueError):
         n.set_hotspot('x', 'short')
     with pytest.raises(ValueError):
